@@ -1,0 +1,28 @@
+{
+  "template": "https://github.com/scverse/cookiecutter-scverse",
+  "commit": "2f766dd6b8cef64e3a127bd316dd61415fbc37b6",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "project_name": "scCoral",
+      "package_name": "sccoral",
+      "project_description": "Covariate informed scVI with linear decoder",
+      "author_full_name": "Lucas Diedrich",
+      "author_email": "ldiedric@broadinstitute.org",
+      "github_user": "lucas-diedrich",
+      "project_repo": "https://github.com/lucas-diedrich/sccoral",
+      "license": "MIT License",
+      "_copy_without_render": [
+        ".github/workflows/**.yaml",
+        "docs/_templates/autosummary/**.rst"
+      ],
+      "_render_devdocs": false,
+      "_jinja2_env_vars": {
+        "lstrip_blocks": true,
+        "trim_blocks": true
+      },
+      "_template": "https://github.com/scverse/cookiecutter-scverse"
+    }
+  },
+  "directory": null
+}

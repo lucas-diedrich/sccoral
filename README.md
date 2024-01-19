@@ -11,9 +11,9 @@ Covariate informed scVI with linear decoder
 
 ## Getting started
 
-Please refer to the [documentation][link-docs]. In particular, the
+<!-- Please refer to the [documentation][link-docs]. In particular, the
 
--   [API documentation][link-api].
+-   [API documentation][link-api]. -->
 
 ## Installation
 
@@ -44,6 +44,19 @@ See the [changelog][changelog].
 
 For questions and help requests, you can reach out in the [scverse discourse][scverse-discourse].
 If you found a bug, please use the [issue tracker][issue-tracker].
+
+## References
+
+**Interpretable factor models of single-cell RNA-seq via variational autoencoders**
+Valentine Svensson, Adam Gayoso, Nir Yosef, Lior Pachter, Bioinformatics, Volume 36, Issue 11, June 2020, Pages 3418–3421, https://doi.org/10.1093/bioinformatics/btaa169
+
+**A Python library for probabilistic analysis of single-cell omics data**
+Adam Gayoso, Romain Lopez, Galen Xing, Pierre Boyeau, Valeh Valiollah Pour Amiri, Justin Hong, Katherine Wu, Michael Jayasuriya, Edouard Mehlman, Maxime Langevin, Yining Liu, Jules Samaran, Gabriel Misrachi, Achille Nazaret, Oscar Clivio, Chenling Xu, Tal Ashuach, Mariano Gabitto, Mohammad Lotfollahi, Valentine Svensson, Eduardo da Veiga Beltrame, Vitalii Kleshchevnikov, Carlos Talavera-López, Lior Pachter, Fabian J. Theis, Aaron Streets, Michael I. Jordan, Jeffrey Regier & Nir Yosef
+Nature Biotechnology 2022 Feb 07. https://doi.org/10.1038/s41587-021-01206-w.
+
+**The scverse project provides a computational ecosystem for single-cell omics data analysis**
+Isaac Virshup, Danila Bredikhin, Lukas Heumos, Giovanni Palla, Gregor Sturm, Adam Gayoso, Ilia Kats, Mikaela Koutrouli, Scverse Community, Bonnie Berger, Dana Pe’er, Aviv Regev, Sarah A. Teichmann, Francesca Finotello, F. Alexander Wolf, Nir Yosef, Oliver Stegle & Fabian J. Theis
+Nat Biotechnol. 2022 Apr 10. https://doi.org/10.1038/s41587-023-01733-8.
 
 ## Citation
 

@@ -3,7 +3,7 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 [project]
-name = "scCoral"
+name = "sccoral"
 version = "0.0.1"
 description = "Covariate informed scVI with linear decoder"
 readme = "README.md"

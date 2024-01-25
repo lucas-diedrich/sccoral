@@ -6,19 +6,25 @@ from typing import Any, Literal
 import anndata as ad
 import pandas as pd
 from scvi import REGISTRY_KEYS
+from scvi.autotune import Tunable, TunableMixin
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalJointObsField, CategoricalObsField, LayerField, NumericalJointObsField
+from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size
 from scvi.model.base import BaseModelClass
+
+# from scvi.train import TrainingPlan
+from scvi.train import TrainRunner
 from scvi.utils import setup_anndata_dsp
 from torch import inference_mode
 
 from sccoral.module import MODULE
+from sccoral.train import _training_plan
 
 logger = logging.getLogger(__name__)
 
 
-class SCCORAL(BaseModelClass):
+class SCCORAL(TunableMixin, BaseModelClass):
     """Single-cell COvariate-informed Regularized variational Autoencoder with Linear Decoder
 
     Parameters
@@ -72,17 +78,20 @@ class SCCORAL(BaseModelClass):
     """
 
     _module_cls = MODULE
+    _data_splitter_class = DataSplitter
+    _training_plan_class = _training_plan
+    _train_runner_cls = TrainRunner
 
     def __init__(
         self,
         adata: ad.AnnData,
         n_latent: int = 10,
-        alpha_l1: float = 0.1,
-        n_hidden: int = 128,
-        n_layers: int = 1,
-        dropout_rate: float = 0.1,
+        alpha_l1: Tunable[float] = 0.1,
+        n_hidden: Tunable[int] = 128,
+        n_layers: Tunable[int] = 1,
+        dropout_rate: Tunable[float] = 0.1,
         #  TODO dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        gene_likelihood: Literal["nb", "zinb", "poisson"] = "nb",
+        gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",
         # TODO latent_distribution: Literal["normal", "lognormal"] = "normal",
         **model_kwargs,
     ) -> None:
@@ -210,14 +219,83 @@ class SCCORAL(BaseModelClass):
     def train(
         self,
         max_epochs: int = 500,
-        max_pretraining_epochs: None | int = 500,
-        accelerator: None | Literal["cpu", "gpu"] = None,
-        validation_size: None | float = None,
-        plan_kwargs: None | dict[str, Any] = None,
+        max_pretraining_epochs: None | int = None,
+        use_gpu: None | bool = None,
+        accelerator: None | Literal["cpu", "gpu", "auto"] = "auto",
+        devices="auto",
+        train_size: None | float = 0.9,
         batch_size: int = 128,
-        early_stopping_pretraining: bool = True,
         early_stopping: bool = True,
-        **trainer_kwargs: Any,
+        pretraining: bool = True,
+        pretraining_kwargs: None | dict[str, Any] = None,
+        plan_kwargs: None | dict[str, Any] = None,
+        trainer_kwargs: None | dict[str, Any] = None,
     ) -> None:
-        # TODO
-        pass
+        """Train sccoral model
+
+        Training is split into pretraining (only training on covariates, frozen z_encoder weights)
+        and training (unfrozen weights)
+
+        max_epochs
+            Maximum epochs during training
+        max_pretraining_epochs
+            Maximum epochs during pretraining. If `None`, same as max_epochs
+        use_gpu
+            Whether to use gpu. If `None` automatically detects gpu
+        accelerator
+            cpu/gpu/auto: auto automatically detects available devices
+        devices
+            If `auto`, automatically detects available devices
+        train_size
+            Size of train split (0-1). Rest is validation split
+        batch_size
+            Size of minibatches during training
+        early_stopping
+            Enable early stopping during training
+        early_stopping_pretraining
+            Enable early stopping during pretraining
+        pretraining
+            Whether to conduct pretraining
+        pretraining_kwargs
+            Additional keyword arguments passed to `sccoral.train.TrainingPlan`
+            affecting pretraining
+        plan_kwargs
+            Training keyword arguments passed to `sccoral.train.TrainingPlan`
+        trainer_kwargs
+            Additional keyword arguments passed to `scvi.train.TrainRunner`
+        """
+        # TODO Refactor
+        if pretraining:
+            if pretraining_kwargs is None:
+                pretraining_kwargs = {"early_stopping": True, "early_stopping_patience": 5}
+        else:
+            pretraining_kwargs = None
+
+        # PRETRAINING
+        # TRAINING
+        # PASSED TO pl.Trainer
+        training_plan = self._training_plan(module=self.module, **pretraining_kwargs, **plan_kwargs)
+
+        assert (train_size <= 1) & (train_size > 0)
+        validation_size = 1 - train_size
+
+        data_splitter = self._data_splitter_cls(
+            self.adata_manager,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+            use_gpu=use_gpu,
+        )
+
+        # Should be left as is
+        runner = self._train_runner_cls(
+            self,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            max_epochs=max_epochs,
+            use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
+        )
+
+        return runner()

@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.functional as F
 from scvi import REGISTRY_KEYS
+from scvi.autotune import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, one_hot
@@ -64,22 +65,22 @@ class MODULE(BaseModuleClass):
         n_input: int,
         categorical_mapping: None | dict[str, int],
         continuous_names: None | Iterable,
-        alpha_l1: float = 0,
+        alpha_l1: Tunable[float] = 0,
         n_batch: int = 0,
         n_labels: int = 0,  # TODO gene-labels not implemented
-        n_hidden: int = 128,
+        n_hidden: Tunable[int] = 128,
         n_latent: int = 10,
-        n_layers: int = 1,
-        distribution: Literal["normal", "ln"] = "normal",
-        dropout_rate: int = 0.1,
+        n_layers: Tunable[int] = 1,
+        distribution: Tunable[Literal["normal", "ln"]] = "normal",
+        dropout_rate: Tunable[int] = 0.1,
         log_variational: bool = True,  # as LSCVI
-        gene_likelihood: Literal["nb", "zinb", "poisson"] = "nb",  # as LSCVI
-        latent_distribution: Literal["normal", "ln"] = "normal",  # as LSCVI
-        dispersion: Literal["gene", "gene-batch", "gene-cell"] = "gene",  # TODO gene-labels not implemented
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "encoder",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",  # as LSCVI
+        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",  # as LSCVI
+        dispersion: Tunable[Literal["gene", "gene-batch", "gene-cell"]] = "gene",  # TODO gene-labels not implemented
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "encoder",
+        use_layer_norm: Tunable[Literal["encoder", "none"]] = "none",
         #  use_size_factor_key: bool = False, #TODO SKIP
-        use_observed_lib_size: bool = True,  # TODO LSCVI overwrites this flag and uses False
+        use_observed_lib_size: Tunable[bool] = True,  # TODO LSCVI overwrites this flag and uses False
         library_log_means: None | np.ndarray = None,
         library_log_vars: None | np.ndarray = None,
         **vae_kwargs,

@@ -10,11 +10,6 @@ and this project adheres to [Semantic Versioning][].
 
 ### Added
 
-#### December 2023
-
--   Model/Module/nn - Covariate informed VAE with linear decoder, model based on LSCVI
--   Added l1-regularization term to linear decoder
-
 #### January 2024
 
 -   `sccoral` in `sc-verse` cookiecutter template
@@ -23,20 +18,31 @@ and this project adheres to [Semantic Versioning][].
 
 **Tests**
 
--   Add tests for model setup
--   Add tests based on implemented tests for callbacks
+-   Added tests for model setup
+-   Added tests based on implemented tests for callbacks
 
 **Model**
 
 -   Added custom `TrainingPlan` with pre-training procedure for covariates
 
-#### TODO
+#### December 2023
 
-**Jupyter Notebooks**
+-   Model/Module/nn - Covariate informed VAE with linear decoder, model based on LSCVI
+-   Added l1-regularization term to linear decoder
+
+## [TODO]
+
+#### Jupyter Notebooks
 
 -   Jupyter Notebook - Demonstration on simulated data
 -   Jupyter Notebook - Demonstration on IFN stimulation - Kang et al, 2018 data
 
-**Documentation**
+#### Documentation
 
 -   Add readthedocs website
+
+#### Plotting (.pl)
+
+-   Implement plotting module
+
+<!-- #### Tools (.tl)  -->

@@ -13,7 +13,7 @@ class ScCoralTrainingPlan(TrainingPlan):
     """Implement custom pretraining procedure for sccoral
 
     Inherits from `scvi.train.TrainingPlan` and adds
-    custom properties `is_pretrained` and `pretraining
+    custom properties `is_pretrained` and `pretraining_early_stopping_condition`
     """
 
     def __init__(self, module, **kwargs):

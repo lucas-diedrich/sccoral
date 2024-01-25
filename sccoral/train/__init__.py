@@ -1,1 +1,4 @@
-from .train import ScCoralTrainingPlan as _training_plan
+from . import _callbacks
+from ._trainingplans import ScCoralTrainingPlan
+
+__all__ = ["_callbacks", "ScCoralTrainingPlan"]

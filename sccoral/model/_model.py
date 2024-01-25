@@ -19,7 +19,8 @@ from scvi.utils import setup_anndata_dsp
 from torch import inference_mode
 
 from sccoral.module import MODULE
-from sccoral.train import _training_plan
+from sccoral.train import ScCoralTrainingPlan
+from sccoral.train import _callbacks as tcb
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,8 @@ class SCCORAL(TunableMixin, BaseModelClass):
 
     _module_cls = MODULE
     _data_splitter_class = DataSplitter
-    _training_plan_class = _training_plan
+    # scvi.train.TrainingPlan with additional class attributes for pretraining
+    _training_plan_class = ScCoralTrainingPlan
     _train_runner_cls = TrainRunner
 
     def __init__(
@@ -143,7 +145,7 @@ class SCCORAL(TunableMixin, BaseModelClass):
         Pandas DataFrame
             `n_genes` x `n_latent`
         """
-        pass
+        raise NotImplementedError
 
     @inference_mode()
     def get_latent_representation(self, adata: None | ad.AnnData, set_columns_names: bool = False) -> pd.DataFrame:
@@ -161,7 +163,7 @@ class SCCORAL(TunableMixin, BaseModelClass):
         Pandas DataFrame
             `n_cells` x `n_latent`
         """
-        pass
+        raise NotImplementedError
 
     @inference_mode()
     def get_explained_variance_per_factor(
@@ -181,7 +183,7 @@ class SCCORAL(TunableMixin, BaseModelClass):
         Pandas DataFrame
             `1` x `n_latent`
         """
-        pass
+        raise NotImplementedError()
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -219,15 +221,19 @@ class SCCORAL(TunableMixin, BaseModelClass):
     def train(
         self,
         max_epochs: int = 500,
-        max_pretraining_epochs: None | int = None,
+        pretraining: bool = True,
         use_gpu: None | bool = None,
         accelerator: None | Literal["cpu", "gpu", "auto"] = "auto",
         devices="auto",
         train_size: None | float = 0.9,
         batch_size: int = 128,
         early_stopping: bool = True,
-        pretraining: bool = True,
-        pretraining_kwargs: None | dict[str, Any] = None,
+        # TODO refactor into pretraining_kwargs
+        pretraining_max_epochs: int = 500,
+        pretraining_early_stopping: bool = True,
+        pretraining_early_stopping_metric: Tunable[None | Literal["reconstruction_loss"]] = None,
+        pretraining_min_delta: float = 0.0,
+        pretraining_early_stopping_patience: Tunable[int] = 5,
         plan_kwargs: None | dict[str, Any] = None,
         trainer_kwargs: None | dict[str, Any] = None,
     ) -> None:
@@ -252,29 +258,38 @@ class SCCORAL(TunableMixin, BaseModelClass):
             Size of minibatches during training
         early_stopping
             Enable early stopping during training
-        early_stopping_pretraining
-            Enable early stopping during pretraining
         pretraining
             Whether to conduct pretraining
-        pretraining_kwargs
-            Additional keyword arguments passed to `sccoral.train.TrainingPlan`
-            affecting pretraining
+        pretraining_max_epochs
+            Maximum number of epochs for pretraining to continue.
+        pretraining_early_stopping
+            Enable early stopping during pretraining
         plan_kwargs
             Training keyword arguments passed to `sccoral.train.TrainingPlan`
         trainer_kwargs
             Additional keyword arguments passed to `scvi.train.TrainRunner`
         """
-        # TODO Refactor
+        # IMPLEMENT PRETRAINING
         if pretraining:
-            if pretraining_kwargs is None:
-                pretraining_kwargs = {"early_stopping": True, "early_stopping_patience": 5}
-        else:
-            pretraining_kwargs = None
+            check_pretraining_stop_callback = tcb.EarlyStoppingCheck(
+                monitor=pretraining_early_stopping_metric,
+                min_delta=pretraining_min_delta,
+                patience=pretraining_early_stopping_patience,
+                mode="min",
+                check_on_train=True,
+            )
+            pretraing_freeze_callback = tcb.PretrainingFreezeWeights(
+                submodule="z_encoder",
+                n_pretraining_epochs=pretraining_max_epochs,
+                early_stopping=pretraining_early_stopping,
+            )
+
+            trainer_kwargs["callbacks"] += [check_pretraining_stop_callback, pretraing_freeze_callback]
 
         # PRETRAINING
         # TRAINING
         # PASSED TO pl.Trainer
-        training_plan = self._training_plan(module=self.module, **pretraining_kwargs, **plan_kwargs)
+        training_plan = self._training_plan(module=self.module, **plan_kwargs)
 
         assert (train_size <= 1) & (train_size > 0)
         validation_size = 1 - train_size
@@ -296,6 +311,7 @@ class SCCORAL(TunableMixin, BaseModelClass):
             use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
+            **trainer_kwargs,
         )
 
         return runner()

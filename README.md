@@ -17,10 +17,11 @@ Covariate informed scVI with linear decoder
 
 ## Installation
 
-You need to have Python 3.9 or newer installed on your system. If you don't have
-Python installed, we recommend installing [Mambaforge](https://github.com/conda-forge/miniforge#mambaforge).
+This repository is still under active development. If you want to install the package, please install it directly from `GitHub`.
 
-There are several alternative options to install scCoral:
+<!--
+You need to have Python 3.9 or newer installed on your system. If you don't have
+Python installed, we recommend installing [Mambaforge](https://github.com/conda-forge/miniforge#mambaforge). -->
 
 <!--
 1) Install the latest release of `scCoral` from `PyPI <https://pypi.org/project/scCoral/>`_:
@@ -38,12 +39,15 @@ pip install git+https://github.com/lucas-diedrich/sccoral.git@main
 
 ## Release notes
 
-See the [changelog][changelog].
+This repository is still under active development. See the [changelog][changelog].
 
 ## Contact
 
-For questions and help requests, you can reach out in the [scverse discourse][scverse-discourse].
-If you found a bug, please use the [issue tracker][issue-tracker].
+For feedback, questions and help requests, you can reach out via the issue tracker. Do not hesistate to contact us via [ldiedric@broadinstitute.org](mailto:ldiedric@broadinstitute.org)
+
+<!-- in the [scverse discourse][scverse-discourse]. -->
+
+If you found a bug, please also use the [issue tracker][issue-tracker].
 
 ## References
 
@@ -60,7 +64,7 @@ Nat Biotechnol. 2022 Apr 10. https://doi.org/10.1038/s41587-023-01733-8.
 
 ## Citation
 
-> t.b.a
+> None
 
 [scverse-discourse]: https://discourse.scverse.org/
 [issue-tracker]: https://github.com/lucas-diedrich/scCoral/issues

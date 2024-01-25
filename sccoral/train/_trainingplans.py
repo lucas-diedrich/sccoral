@@ -17,24 +17,7 @@ class ScCoralTrainingPlan(TrainingPlan):
     """
 
     def __init__(self, module, **kwargs):
-        super().__init__(
-            module,
-            # optimizer,
-            # optimizer_creator,
-            # lr,
-            # weight_decay,
-            # eps,
-            # n_steps_kl_warmup,
-            # n_epochs_kl_warmup,
-            # reduce_lr_on_plateau,
-            # lr_factor,
-            # lr_patience,
-            # lr_scheduler_metric,
-            # lr_min,
-            # max_kl_weight,
-            # min_kl_weight,
-            # **loss_kwargs,
-        )
+        super().__init__(module, **kwargs)
 
         self._is_pretrained = False
         self._pretraining_early_stopping_condition = False

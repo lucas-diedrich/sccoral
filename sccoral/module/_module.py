@@ -4,7 +4,7 @@ from typing import Literal
 
 import numpy as np
 import torch
-import torch.functional as F
+import torch.nn.functional as F
 from scvi import REGISTRY_KEYS
 from scvi.autotune import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
@@ -213,14 +213,13 @@ class MODULE(BaseModuleClass):
                 # Register encoder in class
                 setattr(self, name, model)
                 # Store
-                continous_encoder_collection[con_name] = {"covariate": cat_name, "name": name, "dim": dim}
+                continous_encoder_collection[con_name] = {"covariate": con_name, "name": name, "dim": dim}
         self.continous_encoder_collection = continous_encoder_collection
 
         # Linear Decoder (as in LSCVI)
         self.decoder = LinearDecoder(
             n_input=n_latent + n_cat + n_con,
             n_output=n_input,
-            batch_list=[n_batch],
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=False,
             bias=False,
@@ -239,10 +238,11 @@ class MODULE(BaseModuleClass):
         # For binary covariates, encode as 1-dim OHE, for
         # N>2 categorical covariates as N-dim OHE
         categorical_key = REGISTRY_KEYS.CAT_COVS_KEY
+        categorical_covariates_ohe = None
         if categorical_key in tensors.keys():
-            categorical_covariates = torch.split(tensors[categorical_key], split_size_or_sections=1, dim=1)
             categorical_covariates_ohe = {}
-            for xi, (cat_name, n_level) in zip(categorical_covariates, self.categorical_mapping):
+            categorical_covariates = torch.split(tensors[categorical_key], split_size_or_sections=1, dim=1)
+            for xi, (cat_name, n_level) in zip(categorical_covariates, self.categorical_mapping.items()):
                 # TODO
                 if n_level == 2:
                     categorical_covariates_ohe[cat_name] = xi

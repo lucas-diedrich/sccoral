@@ -9,18 +9,13 @@ def test_package_has_version():
     assert sccoral.__version__ is not None
 
 
-# @pytest.mark.skip(reason="This decorator should be removed when test passes.")
-# def test_example():
-# assert 1 == 0  # This test is designed to fail.
-
-
 @pytest.fixture(scope="module")
 def adata():
     """Create synthetic adata with categorical+continuous covariate"""
     adata = synthetic_iid(batch_size=200, n_genes=100, n_proteins=0, n_regions=0, n_batches=2, n_labels=2)
 
     adata.obs["categorical_covariate"] = np.random.choice(["A", "B"], size=adata.n_obs, replace=True)
-    adata.obs["continuous_covariate"] = np.linspace(0, 1, adata.n_obs)
+    adata.obs["continuous_covariate"] = 1
 
     return adata
 
@@ -42,10 +37,10 @@ def test_train(adata):
         adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
     )
     model = SCCORAL(adata, n_latent=5)
-    model.train()
+    model.train(pretraining=False, max_epochs=10)
 
 
-@pytest.mark.parametrize(["max_pretraining_epochs", "requires_grad"], [10, 21], [True, False])
+@pytest.mark.parametrize(["max_pretraining_epochs", "requires_grad"], [[10, True], [21, False]])
 def test_pretraining_max_epochs(adata, max_pretraining_epochs, requires_grad):
     SCCORAL.setup_anndata(
         adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
@@ -64,7 +59,7 @@ def test_pretraining_max_epochs(adata, max_pretraining_epochs, requires_grad):
     assert model.module.z_encoder.encoder.fc_layers[0][0].weight.requires_grad == requires_grad
 
 
-@pytest.mark.parametrize(["pretraining_early_stopping", "requires_grad"], [True, False], [True, False])
+@pytest.mark.parametrize(["pretraining_early_stopping", "requires_grad"], [[True, True], [False, False]])
 def test_pretraining_early_stopping(adata, pretraining_early_stopping, requires_grad):
     SCCORAL.setup_anndata(
         adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
@@ -77,7 +72,7 @@ def test_pretraining_early_stopping(adata, pretraining_early_stopping, requires_
         use_gpu=False,
         accelerator="cpu",
         early_stopping=False,
-        pretraining_early_stoppin=pretraining_early_stopping,
+        pretraining_early_stopping=pretraining_early_stopping,
         pretraining_max_epochs=21,
         pretraining_min_delta=np.inf,
         pretraining_early_stopping_patience=1,

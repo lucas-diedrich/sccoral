@@ -123,7 +123,7 @@ class SCCORAL(BaseModelClass, TunableMixin):
         )
 
         # CONTINUOUS COVARIATES
-        continuous_names = self.adata_manager.get_state_registry(REGISTRY_KEYS.CONT_COVS_KEY).get("field_keys")
+        continuous_names = self.adata_manager.get_state_registry(REGISTRY_KEYS.CONT_COVS_KEY).get("columns")
 
         # TODO
         (library_log_means, library_log_vars) = _init_library_size(self.adata_manager, n_batch)
@@ -254,7 +254,9 @@ class SCCORAL(BaseModelClass, TunableMixin):
         # TODO refactor into pretraining_kwargs
         pretraining_max_epochs: int = 500,
         pretraining_early_stopping: bool = True,
-        pretraining_early_stopping_metric: Tunable[None | Literal["reconstruction_loss"]] = None,
+        pretraining_early_stopping_metric: Tunable[
+            None | Literal["reconstruction_loss_train", "train_loss_epoch", "elbo_train"]
+        ] = "reconstruction_loss_train",
         pretraining_min_delta: float = 0.0,
         pretraining_early_stopping_patience: Tunable[int] = 5,
         plan_kwargs: None | dict[str, Any] = None,
@@ -300,10 +302,10 @@ class SCCORAL(BaseModelClass, TunableMixin):
         Training runner (scvi-tools wrapper of pytorch lightning trainer.)
 
         """
-        trainer_kwargs = trainer_kwargs if isinstance(plan_kwargs, dict) else {}
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
-        trainer_kwargs["early_stopping "] = (
+        trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else {}
+        trainer_kwargs["early_stopping"] = (
             early_stopping if "early_stopping" not in trainer_kwargs.keys() else trainer_kwargs["early_stopping"]
         )
 
@@ -315,7 +317,6 @@ class SCCORAL(BaseModelClass, TunableMixin):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            use_gpu=use_gpu,
         )
 
         # IMPLEMENT PRETRAINING

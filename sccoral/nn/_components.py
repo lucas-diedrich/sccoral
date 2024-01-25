@@ -71,7 +71,6 @@ class LinearDecoder(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        batch_list: None | list[int] = None,  # original: cat_list
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,
@@ -82,7 +81,6 @@ class LinearDecoder(nn.Module):
         self.factor_loading = FCLayers(
             n_in=n_input,
             n_out=n_output,
-            n_cat_list=batch_list,
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,
@@ -95,7 +93,6 @@ class LinearDecoder(nn.Module):
         self.px_dropout_decoder = FCLayers(
             n_in=n_input,
             n_out=n_output,
-            n_cat_list=batch_list,
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,
@@ -105,10 +102,10 @@ class LinearDecoder(nn.Module):
             **kwargs,
         )
 
-    def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list):
-        raw_px_scale = self.factor_loading(z, *cat_list)
+    def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor):
+        raw_px_scale = self.factor_loading(z)
         px_scale = torch.softmax(raw_px_scale, dim=-1)
-        px_dropout = self.px_dropout_decoder(z, *cat_list)
+        px_dropout = self.px_dropout_decoder(z)
         px_rate = torch.exp(library) * px_scale
         px_r = None
 

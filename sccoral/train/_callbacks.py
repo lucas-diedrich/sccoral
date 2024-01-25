@@ -32,7 +32,7 @@ class EarlyStoppingCheck(EarlyStopping):
 
     def __init__(
         self,
-        monitor="reconstruction_loss",
+        monitor="",
         min_delta: float = 0.0,
         patience: int = 5,
         mode: Literal["max", "min"] = "min",

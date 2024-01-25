@@ -17,10 +17,9 @@ and this project adheres to [Semantic Versioning][].
 
 #### January 2024
 
+-   `sccoral` in `sc-verse` cookiecutter template
 -   Added `sccoral.data` for project-specific data
 -   Added callbacks for pretraining procecure
-
-#### TODO
 
 **Tests**
 
@@ -30,6 +29,8 @@ and this project adheres to [Semantic Versioning][].
 **Model**
 
 -   Added custom `TrainingPlan` with pre-training procedure for covariates
+
+#### TODO
 
 **Jupyter Notebooks**
 

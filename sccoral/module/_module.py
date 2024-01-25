@@ -41,23 +41,38 @@ class MODULE(BaseModuleClass):
     ----------
     n_input
         Number of input genes
+    categorical_mapping
+        Dictionary mapping category names and number of categories per category
+    continuous_names
+        Iterable listing the continuous category names
+    alpha_l1
+        Regularization parameter
+    n_batch
+        Number of batches
+    # n_labels NOT IMPLEMENTED
     n_hidden
         Number of nodes per hidden layer on encoder site
     n_latent
         Number of latent dimensions
     n_layers
         Number of layers on encoder site
-    dropout_rate
-        Dropout rate for encoder
-    dispersion
-        # TODO
     latent_distribution
-        Whether the latent distribution is normal (scVI) or lognormal (as pioneered by LSCVI).
+        Whether the latent distribution is normal (scVI) or lognormal (as suggested by LSCVI).
         As the original authors found that the log(data+1) latent distribution is less powerful,
         we use `normal` per default.
+    dispersion
+        Fit dispersion parameters on a per-gene, per-gene/individual batch, per-gene/individual cell
+        basis
+    log_variational
+        Logarithmized variance for increased stability
     use_batch_norm
-        Whether to use batch norm in decoder
-
+        Whether to use batch norm in encoder
+    use_layer_norm
+        Whether to use layer norm in encoder.
+    library_log_means, library_log_vars
+        Library parameters
+    **vae_kwargs
+        Keyword arguments passed to Encoder
     """
 
     def __init__(
@@ -67,19 +82,17 @@ class MODULE(BaseModuleClass):
         continuous_names: None | Iterable,
         alpha_l1: Tunable[float] = 0,
         n_batch: int = 0,
-        n_labels: int = 0,  # TODO gene-labels not implemented
+        # n_labels: int = 0,  # TODO gene-labels not implemented
         n_hidden: Tunable[int] = 128,
         n_latent: int = 10,
         n_layers: Tunable[int] = 1,
-        distribution: Tunable[Literal["normal", "ln"]] = "normal",
-        dropout_rate: Tunable[int] = 0.1,
-        log_variational: bool = True,  # as LSCVI
+        dropout_rate: float = 0.1,
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",  # as LSCVI
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",  # as LSCVI
         dispersion: Tunable[Literal["gene", "gene-batch", "gene-cell"]] = "gene",  # TODO gene-labels not implemented
+        log_variational: bool = True,  # as LSCVI
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "encoder",
         use_layer_norm: Tunable[Literal["encoder", "none"]] = "none",
-        #  use_size_factor_key: bool = False, #TODO SKIP
         use_observed_lib_size: Tunable[bool] = True,  # TODO LSCVI overwrites this flag and uses False
         library_log_means: None | np.ndarray = None,
         library_log_vars: None | np.ndarray = None,
@@ -136,7 +149,7 @@ class MODULE(BaseModuleClass):
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
-        use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
+        use_layer_norm_encoder = use_layer_norm == "encoder"
 
         # SETUP Neural nets
         # Setup latent space as follows:
@@ -151,10 +164,11 @@ class MODULE(BaseModuleClass):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
-            distribution=distribution,
+            distribution=latent_distribution,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
             return_dist=False,
+            **vae_kwargs,
         )
 
         # Library
@@ -169,6 +183,7 @@ class MODULE(BaseModuleClass):
             return_dist=True,
         )
 
+        # NOVELTY
         # Categorical embedding
         categorical_encoder_collection = {}
         if categorical_mapping is not None:
@@ -187,6 +202,7 @@ class MODULE(BaseModuleClass):
 
         self.categorical_encoder_collection = categorical_encoder_collection
 
+        # NOVELTY
         # Continous embedding
         continous_encoder_collection = {}
         if continuous_names is not None:
@@ -227,6 +243,7 @@ class MODULE(BaseModuleClass):
             categorical_covariates = torch.split(tensors[categorical_key], split_size_or_sections=1, dim=1)
             categorical_covariates_ohe = {}
             for xi, (cat_name, n_level) in zip(categorical_covariates, self.categorical_mapping):
+                # TODO
                 if n_level == 2:
                     categorical_covariates_ohe[cat_name] = xi
                 else:
@@ -319,6 +336,7 @@ class MODULE(BaseModuleClass):
                 library = ql.sample((n_samples,))
 
         outputs = {"z": z, "qz": qz, "ql": ql, "library": library}
+
         return outputs
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -348,17 +366,9 @@ class MODULE(BaseModuleClass):
         z,
         library,
         batch_index,
-        # size_factor=None, # TODO
-        transform_batch=None,
+        # transform_batch=None NOT IMPLEMENTED IN LSCVI
     ):
         decoder_input = z
-
-        if transform_batch is not None:
-            batch_index = torch.ones_like(batch_index) * transform_batch
-
-        ## TODO originally: self.use_size_factor_key - look up meaning
-        # if not self.use_size_factor_key:
-        #     size_factor = library
 
         # Linear decoder (Linear layer)
         # px_scale: normalized gene expression (relative to library size)

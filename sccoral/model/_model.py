@@ -12,10 +12,7 @@ from scvi.data.fields import CategoricalJointObsField, CategoricalObsField, Laye
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size
 from scvi.model.base import BaseModelClass
-
-# from scvi.train import TrainingPlan
 from scvi.train import TrainRunner
-from scvi.utils import setup_anndata_dsp
 from torch import inference_mode
 
 from sccoral.module import MODULE
@@ -25,7 +22,7 @@ from sccoral.train import _callbacks as tcb
 logger = logging.getLogger(__name__)
 
 
-class SCCORAL(TunableMixin, BaseModelClass):
+class SCCORAL(BaseModelClass, TunableMixin):
     """Single-cell COvariate-informed Regularized variational Autoencoder with Linear Decoder
 
     Parameters
@@ -33,23 +30,32 @@ class SCCORAL(TunableMixin, BaseModelClass):
     adata
         Registered AnnData object
     n_latent
-        Number of latent dimensions
+        Number of latent dimensions, approximated dimensionality of dataset
+    alpha_l1
+        Regularization strength in decoder
+    n_hidden
+        Number of hidden layers in encoder
     n_layers
         Number of layers in encoder neural network (see LSCVI)
     dropout_rate
         Dropout rate for neural networks (see LSCVI)
     dispersion
-        #TODO
+        Whether dispersion parameters of genes are fit on the level of
+        1) datasets 2) batches 3) cells (not implemented: labels)
+    log_variational
+        Whether to log(x+1) counts x during encoding
+    latent_distribution
+        Prior on latent space
     gene_likelihood
         One of (see scVI/LSCVI)
 
             * ``nb`` - Negative binomial distribution
             * ``zinb`` - Zero inflated negative binomial distribution
             * ``poisson`` - Poisson distribution
-
-    latent_distribution
-        # TODO
-
+    use_batch_norm
+        Batch norm in encoder
+    use_layer_norm
+        Layer norm in encoder
     **model_kwargs
         Keyword arguments for :class:`~sccoral.module._module`
 
@@ -58,11 +64,10 @@ class SCCORAL(TunableMixin, BaseModelClass):
     --------
     >>> adata = sccoral.data.simulation_dataset()
     >>> sccoral.model.setup_anndata(adata,
-                                    n_latent=7,
                                     categorical_covariate='categorical_covariate',
                                     continuous_covariate='continuous_covariate'
                                     )
-    >>> m = sccoral.model(adata)
+    >>> m = sccoral.model(adata, n_latent=7)
     >>> m.train()
     >>> representation = m.get_latent_representation()  # pd.DataFrame cells x n_latent
     >>> loadings = m.get_loadings()  # pd.DataFrame genes x n_latent
@@ -79,48 +84,72 @@ class SCCORAL(TunableMixin, BaseModelClass):
     """
 
     _module_cls = MODULE
-    _data_splitter_class = DataSplitter
+    _data_splitter_cls = DataSplitter
     # scvi.train.TrainingPlan with additional class attributes for pretraining
-    _training_plan_class = ScCoralTrainingPlan
+    _training_plan_cls = ScCoralTrainingPlan
     _train_runner_cls = TrainRunner
 
     def __init__(
         self,
         adata: ad.AnnData,
         n_latent: int = 10,
-        alpha_l1: Tunable[float] = 0.1,
+        alpha_l1: Tunable[float] = 1000,
         n_hidden: Tunable[int] = 128,
         n_layers: Tunable[int] = 1,
         dropout_rate: Tunable[float] = 0.1,
-        #  TODO dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
+        dispersion: Literal["gene", "gene-batch", "gene-cell"] = "gene",  # TODO gene-label
+        log_variational: bool = True,
+        latent_distribution: Literal["normal", "ln"] = "normal",
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",
-        # TODO latent_distribution: Literal["normal", "lognormal"] = "normal",
-        **model_kwargs,
+        use_batch_norm: bool = True,
+        use_layer_norm: bool = False,
+        use_observed_lib_size: bool = True,
+        **vae_kwargs,
     ) -> None:
         super().__init__(adata)
 
+        n_input = self.summary_stats.n_vars
+
         # BATCH
-        n_batch = self.summary_stats.nbatch()
+        n_batch = self.summary_stats.n_batch
 
         # CATEGORICAL COVARIATES
         # None if not categorical_covariate is passed
         names_categorical = self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).get("field_keys")
         n_level_categorical = self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).get("n_cats_per_key")
 
-        category_mapping = dict(zip(names_categorical, n_level_categorical)) if names_categorical is not None else None
-        # CONTINUOUS COVARIATES
-        n_continous = self.summary_stats.n_extra_continuous_covs
+        categorical_mapping = (
+            dict(zip(names_categorical, n_level_categorical)) if names_categorical is not None else None
+        )
 
-        names_continous = self.adata_manager.get_state_registry(REGISTRY_KEYS.CONT_COVS_KEY).get("field_keys")
+        # CONTINUOUS COVARIATES
+        continuous_names = self.adata_manager.get_state_registry(REGISTRY_KEYS.CONT_COVS_KEY).get("field_keys")
 
         # TODO
         (library_log_means, library_log_vars) = _init_library_size(self.adata_manager, n_batch)
 
         # SETUP MODULE
-        self.module = self._module_cls(**model_kwargs)
-
-        # TODO Necessary?
-        self.n_latent = n_latent
+        self.module = self._module_cls(
+            n_input=n_input,
+            categorical_mapping=categorical_mapping,
+            continuous_names=continuous_names,
+            alpha_l1=alpha_l1,
+            n_batch=n_batch,
+            n_hidden=n_hidden,
+            n_latent=n_latent,
+            n_layers=n_layers,
+            dropout_rate=dropout_rate,
+            gene_likelihood=gene_likelihood,
+            latent_distribution=latent_distribution,
+            dispersion=dispersion,
+            log_variational=log_variational,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
+            use_observed_lib_size=use_observed_lib_size,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
+            **vae_kwargs,
+        )
 
         self.init_params_ = self._get_init_params(locals())
 
@@ -186,33 +215,27 @@ class SCCORAL(TunableMixin, BaseModelClass):
         raise NotImplementedError()
 
     @classmethod
-    @setup_anndata_dsp.dedent
     def setup_anndata(
         cls,
         adata: ad.AnnData,
         batch_key: None | str = None,
         # labels_key: None | str = None,
-        cat_keys: None | Iterable[str] = None,
-        cont_keys: None | Iterable[str] = None,
+        categorical_covariates: None | str | Iterable[str] = None,
+        continuous_covariates: None | str | Iterable[str] = None,
         layer: None | str = None,
         **kwargs,
     ):
-        """%(summary)s.
-
-        Parameters
-        ----------
-        %(param_adata)s
-        %(param_batch_key)s
-        %(param_labels_key)s
-        %(param_layer)s
-        """
+        if isinstance(categorical_covariates, str):
+            categorical_covariates = [categorical_covariates]
+        if isinstance(continuous_covariates, str):
+            continuous_covariates = [continuous_covariates]
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             # LabelsField(REGISTRY_KEYS.LABELS_KEY),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, cat_keys),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, cont_keys),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariates),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariates),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
@@ -225,7 +248,7 @@ class SCCORAL(TunableMixin, BaseModelClass):
         use_gpu: None | bool = None,
         accelerator: None | Literal["cpu", "gpu", "auto"] = "auto",
         devices="auto",
-        train_size: None | float = 0.9,
+        validation_size: None | float = 0.1,
         batch_size: int = 128,
         early_stopping: bool = True,
         # TODO refactor into pretraining_kwargs
@@ -240,8 +263,11 @@ class SCCORAL(TunableMixin, BaseModelClass):
         """Train sccoral model
 
         Training is split into pretraining (only training on covariates, frozen z_encoder weights)
-        and training (unfrozen weights)
+        and training (unfrozen weights).
+        Same training procedure as for scVI/LSCVI except for pretraining.
 
+        Parameters
+        ----------
         max_epochs
             Maximum epochs during training
         max_pretraining_epochs
@@ -252,8 +278,8 @@ class SCCORAL(TunableMixin, BaseModelClass):
             cpu/gpu/auto: auto automatically detects available devices
         devices
             If `auto`, automatically detects available devices
-        train_size
-            Size of train split (0-1). Rest is validation split
+        validation_size
+            Size of validation split (0-1). Rest is train split
         batch_size
             Size of minibatches during training
         early_stopping
@@ -268,7 +294,30 @@ class SCCORAL(TunableMixin, BaseModelClass):
             Training keyword arguments passed to `sccoral.train.TrainingPlan`
         trainer_kwargs
             Additional keyword arguments passed to `scvi.train.TrainRunner`
+
+        Returns
+        -------
+        Training runner (scvi-tools wrapper of pytorch lightning trainer.)
+
         """
+        trainer_kwargs = trainer_kwargs if isinstance(plan_kwargs, dict) else {}
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+
+        trainer_kwargs["early_stopping "] = (
+            early_stopping if "early_stopping" not in trainer_kwargs.keys() else trainer_kwargs["early_stopping"]
+        )
+
+        # Data splitter (default)
+        assert validation_size < 1 and validation_size >= 0, "validation_size must in interval [0-1)"
+        train_size = 1 - validation_size
+        data_splitter = self._data_splitter_cls(
+            self.adata_manager,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+            use_gpu=use_gpu,
+        )
+
         # IMPLEMENT PRETRAINING
         if pretraining:
             check_pretraining_stop_callback = tcb.EarlyStoppingCheck(
@@ -284,23 +333,15 @@ class SCCORAL(TunableMixin, BaseModelClass):
                 early_stopping=pretraining_early_stopping,
             )
 
+            if "callbacks" not in trainer_kwargs:
+                trainer_kwargs["callbacks"] = []
+
             trainer_kwargs["callbacks"] += [check_pretraining_stop_callback, pretraing_freeze_callback]
 
         # PRETRAINING
         # TRAINING
         # PASSED TO pl.Trainer
-        training_plan = self._training_plan(module=self.module, **plan_kwargs)
-
-        assert (train_size <= 1) & (train_size > 0)
-        validation_size = 1 - train_size
-
-        data_splitter = self._data_splitter_cls(
-            self.adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            use_gpu=use_gpu,
-        )
+        training_plan = self._training_plan_cls(module=self.module, **plan_kwargs)
 
         # Should be left as is
         runner = self._train_runner_cls(

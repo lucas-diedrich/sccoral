@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import os
+from urllib.request import urlretrieve
 
 import anndata as ad
-from scvi.data import _download
 
 
-def simulation_dataset(save_path: str = "data/", filename: str = "simulation.h5ad") -> ad.AnnData:
+def splatter_simulation(save_path: str = "data/", filename: str = "simulation.h5ad") -> ad.AnnData:
     """Load simulated data
 
     Parameters
@@ -34,17 +34,16 @@ def simulation_dataset(save_path: str = "data/", filename: str = "simulation.h5a
     **Seqgendiff**
     .. [2] Gerard, D. Data-based RNA-seq simulations by binomial thinning. BMC Bioinformatics 21, 206 (2020).
     """
-    url = "https://figshare.com/s/199140ec1dc329efcfbd"
+    url = "https://figshare.com/ndownloader/files/44184947?private_link=199140ec1dc329efcfbd"
 
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
-    _download(url, save_path=save_path, filename=filename)
-
     path_to_file = os.path.join(save_path, filename)
-    adata = ad.read_h5ad(path_to_file)
 
-    return adata
+    if not os.path.isfile(path_to_file):
+        urlretrieve(url, path_to_file)
+    return ad.read_h5ad(path_to_file)
 
 
 def ifn_kang2018_cd4(save_path: str = "data/", filename: str = "ifn_kang2018.h5ad") -> ad.AnnData:

@@ -71,7 +71,7 @@ class LinearDecoder(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        batch_list: None | list[int] = None,  # n_cat_list
+        batch_list: None | list[int] = None,  # original: cat_list
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,

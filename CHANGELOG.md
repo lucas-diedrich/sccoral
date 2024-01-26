@@ -45,4 +45,6 @@ and this project adheres to [Semantic Versioning][].
 
 -   Implement plotting module
 
+### Refactoring
+
 <!-- #### Tools (.tl)  -->

@@ -1,17 +1,31 @@
 # API
 
-## Preprocessing
+## Model
 
 ```{eval-rst}
-.. module:: sccoral.pp
+.. module:: sccoral.model
 .. currentmodule:: sccoral
 
 .. autosummary::
     :toctree: generated
 
-    pp.basic_preproc
+    model.SCCORAL
 ```
 
+## Datasets
+
+```{eval-rst}
+.. module:: sccoral.dataP
+.. currentmodule:: sccoral
+
+.. autosummary::
+    :toctree: generated
+
+    data.splatter_simulation
+
+```
+
+<!--
 ## Tools
 
 ```{eval-rst}
@@ -20,11 +34,9 @@
 
 .. autosummary::
     :toctree: generated
+``` -->
 
-    tl.basic_tool
-```
-
-## Plotting
+<!-- ## Plotting
 
 ```{eval-rst}
 .. module:: sccoral.pl
@@ -35,4 +47,4 @@
 
     pl.basic_plot
     pl.BasicClass
-```
+``` -->

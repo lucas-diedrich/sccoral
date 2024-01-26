@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 import anndata as ad
 import pandas as pd
+import torch
 from scvi import REGISTRY_KEYS
 from scvi.autotune import Tunable, TunableMixin
 from scvi.data import AnnDataManager
@@ -174,10 +175,27 @@ class SCCORAL(BaseModelClass, TunableMixin):
         Pandas DataFrame
             `n_genes` x `n_latent`
         """
-        raise NotImplementedError
+        if not self.is_trained_:
+            raise RuntimeError("Train model first")
+
+        var_names = self.adata.var_names
+        column_names = None
+        if set_column_names:
+            column_names = [
+                # Free factors
+                *list(range(self.module.n_latent)),
+                *self.module.categorical_names,
+                *self.module.continuous_names,
+            ]
+
+        loadings = pd.DataFrame(self.module.get_loadings(), index=var_names, columns=column_names)
+
+        return loadings
 
     @inference_mode()
-    def get_latent_representation(self, adata: None | ad.AnnData, set_columns_names: bool = False) -> pd.DataFrame:
+    def get_latent_representation(
+        self, adata: None | ad.AnnData, set_column_names: bool = True, indices: Iterable = None, batch_size: int = None
+    ) -> pd.DataFrame:
         """Get latent representation of cells in anndata object
 
         Parameters
@@ -186,13 +204,44 @@ class SCCORAL(BaseModelClass, TunableMixin):
             AnnData object to embed. If `None` use stored `anndata.AnnData`
         set_column_names
             Whether to set the column names to covariate names
+        indices
+            Indices of cells to retrieve
+        batch_size
+            Batch size during inference.
 
         Returns
         -------
         Pandas DataFrame
             `n_cells` x `n_latent`
         """
-        raise NotImplementedError
+        if not self.is_trained_:
+            raise RuntimeError("Train model first")
+
+        adata = self._validate_anndata(adata)
+
+        # Instantiate data loader
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        latent = []
+
+        # Inference
+        for tensors in scdl:
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
+
+            z = outputs["z"]
+
+            latent.append(z.cpu())
+
+        column_names = None
+        if set_column_names:
+            column_names = [
+                # Free factors
+                *list(range(self.module.n_latent)),
+                *self.module.categorical_names,
+                *self.module.continuous_names,
+            ]
+
+        return pd.DataFrame(torch.cat(latent).detach().numpy(), index=adata.obs_names, columns=column_names)
 
     @inference_mode()
     def get_explained_variance_per_factor(
@@ -212,7 +261,7 @@ class SCCORAL(BaseModelClass, TunableMixin):
         Pandas DataFrame
             `1` x `n_latent`
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @classmethod
     def setup_anndata(

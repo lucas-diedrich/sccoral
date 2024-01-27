@@ -36,30 +36,30 @@ def splatter_simulation(save_path: str = "data/", filename: str = "simulation.h5
     return ad.read_h5ad(path_to_file)
 
 
-# def ifn_kang2018_cd4(save_path: str = "data/", filename: str = "ifn_kang2018.h5ad") -> ad.AnnData:
-#     """Load CD4+ T cells from Kang et al, 2018
+def ifn_kang2018_cd4(save_path: str = "data/", filename: str = "ifn_kang2018.h5ad") -> ad.AnnData:
+    """Load CD4+ T cells from Kang et al, 2018
 
-#     Parameters
-#     ----------
-#     save_path
-#         Where to save the data
-#     filename
-#         Filename
+    Parameters
+    ----------
+    save_path
+        Where to save the data
+    filename
+        Filename
 
-#     Returns
-#     -------
-#     Annotated data matrix.
-#         IFN Kang et al, 2018.
-#         - obs (index: cell_id): sample_id, stimulation_condition (stim/ctrl)
-#         - var (index: gene_id)
-#         - varm
-#             - deg_log2fc: Ground truth differentially expressed genes
-#             - deg_pvals_adj: Ground truth adjusted pvals (wilcoxon)
+    Returns
+    -------
+    Annotated data matrix.
+        IFN Kang et al, 2018.
+        - obs (index: cell_id): sample_id, stimulation_condition (stim/ctrl)
+        - var (index: gene_id)
+        - varm
+            - deg_log2fc: Ground truth differentially expressed genes
+            - deg_pvals_adj: Ground truth adjusted pvals (wilcoxon)
 
-#     References
-#     ----------
-#     Kang et al, 2018
+    References
+    ----------
+    Kang et al, 2018
 
-#     .. [1] Kang, H. M. et al. Multiplexed droplet single-cell RNA-sequencing using natural genetic variation. Nat Biotechnol 36, 89–94 (2018).
-#     """
-#     pass
+    .. [1] Kang, H. M. et al. Multiplexed droplet single-cell RNA-sequencing using natural genetic variation. Nat Biotechnol 36, 89–94 (2018).
+    """
+    pass

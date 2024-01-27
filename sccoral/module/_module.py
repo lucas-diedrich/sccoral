@@ -6,7 +6,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from scvi import REGISTRY_KEYS
-from scvi.autotune import Tunable
+
+# Changes after scvi 1.0.4
+try:
+    from scvi.autotune import Tunable
+except ImportError:
+    from scvi._types import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, one_hot

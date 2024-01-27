@@ -7,7 +7,13 @@ import anndata as ad
 import pandas as pd
 import torch
 from scvi import REGISTRY_KEYS
-from scvi.autotune import Tunable, TunableMixin
+
+# Changes after scvi 1.0.4
+try:
+    from scvi.autotune import Tunable, TunableMixin
+except ImportError:
+    from scvi._types import Tunable, TunableMixin
+
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalJointObsField, CategoricalObsField, LayerField, NumericalJointObsField
 from scvi.dataloaders import DataSplitter

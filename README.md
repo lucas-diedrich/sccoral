@@ -5,7 +5,7 @@
 ![codecov][badge-codecov]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/lucas-diedrich/scCoral/test.yaml?branch=main
-[link-tests]: https://github.com/lucas-diedrich/sccoral/actions/workflows/test.yml
+[link-tests]: https://github.com/lucas-diedrich/sccoral/actions/workflows/test.yaml/badge.svg
 [badge-docs]: https://img.shields.io/readthedocs/scCoral
 [badge-codecov]: https://codecov.io/gh/lucas-diedrich/sccoral/graph/badge.svg?token=IXBPQ5SSXL
 

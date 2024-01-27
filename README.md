@@ -2,10 +2,12 @@
 
 [![Tests][badge-tests]][link-tests]
 [![Documentation][badge-docs]][link-docs]
+![codecov][badge-codecov]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/lucas-diedrich/scCoral/test.yaml?branch=main
 [link-tests]: https://github.com/lucas-diedrich/sccoral/actions/workflows/test.yml
 [badge-docs]: https://img.shields.io/readthedocs/scCoral
+[badge-codecov]: https://codecov.io/gh/lucas-diedrich/sccoral/graph/badge.svg?token=IXBPQ5SSXL
 
 Covariate informed scVI with linear decoder.
 
@@ -46,6 +48,29 @@ Install the latest development version:
 
 ```bash
 pip install git+https://github.com/lucas-diedrich/sccoral.git@main
+```
+
+### Usage
+
+```{python}
+import sccoral
+
+# Load data
+adata = sccoral.data.splatter_simulation()
+
+# Setup model with scvi-tools syntax
+sccoral.model.setup_anndata(adata,
+                            categorical_covariates='categorical_covariate',
+                            continuous_covariates='continuous_covariates'
+                            )
+model = sccoral.model.SCCORAL(adata, n_latent=7)
+model.train()
+
+# Get latent representation of cells/factor usages
+model.get_latent_representation()
+
+# Get interpretable gene programs (factor loadings)
+model.get_loadings()
 ```
 
 ## Release notes

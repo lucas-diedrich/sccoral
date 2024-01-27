@@ -248,7 +248,7 @@ class MODULE(BaseModuleClass):
             for xi, (cat_name, n_level) in zip(categorical_covariates, self.categorical_mapping.items()):
                 # TODO
                 if n_level == 2:
-                    categorical_covariates_ohe[cat_name] = xi
+                    categorical_covariates_ohe[cat_name] = xi.to(torch.float32)
                 else:
                     categorical_covariates_ohe[cat_name] = one_hot(index=xi, n_cat=n_level).to(torch.float32)
 

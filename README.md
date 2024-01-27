@@ -4,12 +4,12 @@
 [![Documentation][badge-docs]][link-docs]
 ![codecov][badge-codecov]
 
+**CO**variate-informed **r**egularized variational **a**utoencoder with **l**inear decoder
+
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/lucas-diedrich/scCoral/test.yaml?branch=main
 [link-tests]: https://github.com/lucas-diedrich/sccoral/actions/workflows/test.yaml/badge.svg
-[badge-docs]: https://img.shields.io/readthedocs/scCoral
+[badge-docs]: https://readthedocs.org/projects/sccoral/badge/?version=latest&style=default
 [badge-codecov]: https://codecov.io/gh/lucas-diedrich/sccoral/graph/badge.svg?token=IXBPQ5SSXL
-
-Covariate informed scVI with linear decoder.
 
 ## Getting started
 

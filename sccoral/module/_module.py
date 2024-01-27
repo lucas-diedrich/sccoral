@@ -257,10 +257,8 @@ class MODULE(BaseModuleClass):
         continous_key = REGISTRY_KEYS.CONT_COVS_KEY
         continuous_covs_split = None
         if continous_key in tensors.keys():
-            continuous_covariates = torch.split(tensors[continous_key], split_size_or_sections=1, dim=1).to(
-                torch.float32
-            )
-            continuous_covs_split = dict(zip(self.continuous_names, continuous_covariates)).to(torch.float32)
+            continuous_covariates = torch.split(tensors[continous_key], split_size_or_sections=1, dim=1)
+            continuous_covs_split = dict(zip(self.continuous_names, continuous_covariates))
 
         x = tensors[REGISTRY_KEYS.X_KEY]
         input_dict = {

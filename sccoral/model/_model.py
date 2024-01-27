@@ -60,7 +60,7 @@ class SCCORAL(BaseModelClass, TunableMixin):
             * ``zinb`` - Zero inflated negative binomial distribution
             * ``poisson`` - Poisson distribution
     use_batch_norm
-        Batch norm in encoder
+        Batch norm in encoder/decoder
     use_layer_norm
         Layer norm in encoder
     **model_kwargs
@@ -108,7 +108,7 @@ class SCCORAL(BaseModelClass, TunableMixin):
         log_variational: bool = True,
         latent_distribution: Literal["normal", "ln"] = "normal",
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",
-        use_batch_norm: bool = True,
+        use_batch_norm: Literal["encoder", "decoder", "both", "none"] = "encoder",
         use_layer_norm: bool = False,
         use_observed_lib_size: bool = True,
         **vae_kwargs,
@@ -168,7 +168,7 @@ class SCCORAL(BaseModelClass, TunableMixin):
             dropout_rate: {dropout_rate}
             """
 
-    def get_loadings(self, set_column_names: bool = False) -> pd.DataFrame:
+    def get_loadings(self, set_column_names: bool = True) -> pd.DataFrame:
         """Extract linear weights of decoder
 
         Parameters
@@ -200,7 +200,11 @@ class SCCORAL(BaseModelClass, TunableMixin):
 
     @inference_mode()
     def get_latent_representation(
-        self, adata: None | ad.AnnData, set_column_names: bool = True, indices: Iterable = None, batch_size: int = None
+        self,
+        adata: None | ad.AnnData = None,
+        set_column_names: bool = True,
+        indices: Iterable = None,
+        batch_size: int = None,
     ) -> pd.DataFrame:
         """Get latent representation of cells in anndata object
 
@@ -223,6 +227,8 @@ class SCCORAL(BaseModelClass, TunableMixin):
         if not self.is_trained_:
             raise RuntimeError("Train model first")
 
+        if adata is None:
+            adata = self.adata
         adata = self._validate_anndata(adata)
 
         # Instantiate data loader

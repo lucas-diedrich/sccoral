@@ -1,4 +1,5 @@
-from typing import Literal
+from collections.abc import Iterable
+from typing import Literal, Optional
 
 import torch
 from scvi.nn import FCLayers
@@ -71,6 +72,7 @@ class LinearDecoder(nn.Module):
         self,
         n_input: int,
         n_output: int,
+        n_cat_list: Optional[Iterable[int]] = None,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,
@@ -81,6 +83,7 @@ class LinearDecoder(nn.Module):
         self.factor_loading = FCLayers(
             n_in=n_input,
             n_out=n_output,
+            # n_cat_list=n_cat_list,
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,
@@ -93,6 +96,7 @@ class LinearDecoder(nn.Module):
         self.px_dropout_decoder = FCLayers(
             n_in=n_input,
             n_out=n_output,
+            # n_cat_list=n_cat_list,
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,

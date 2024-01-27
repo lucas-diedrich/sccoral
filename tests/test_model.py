@@ -85,7 +85,11 @@ def test_loadings(adata):
     model = SCCORAL(adata, n_latent=5)
     model.train(max_epochs=20, accelerator="cpu")
 
-    model.get_loadings()
+    loadings = model.get_loadings()
+
+    assert loadings.shape == (100, 7)
+    assert "categorical_covariate" in loadings.columns
+    assert "continuous_covariate" in loadings.columns
 
 
 def test_representation(adata):
@@ -95,4 +99,7 @@ def test_representation(adata):
     model = SCCORAL(adata, n_latent=5)
     model.train(max_epochs=20, accelerator="cpu")
 
-    model.get_latent_representation()
+    representation = model.get_latent_representation()
+    assert representation.shape == (400, 7)
+    assert "categorical_covariate" in representation.columns
+    assert "continuous_covariate" in representation.columns

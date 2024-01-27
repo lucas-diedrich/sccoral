@@ -104,6 +104,7 @@ class MODULE(BaseModuleClass):
         super().__init__()
 
         self.n_input = n_input
+        self.n_latent = n_latent
 
         n_cat = len(categorical_mapping) if categorical_mapping is not None else 0
         n_con = len(continuous_names) if continuous_names is not None else 0
@@ -150,9 +151,9 @@ class MODULE(BaseModuleClass):
                 "{}.format(self.dispersion)"
             )
 
-        use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
-        use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
-        use_layer_norm_encoder = use_layer_norm == "encoder"
+        self.use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
+        self.use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
+        self.use_layer_norm_encoder = use_layer_norm == "encoder"
 
         self.use_batch_norm = use_batch_norm
         use_layer_norm = use_layer_norm
@@ -171,8 +172,8 @@ class MODULE(BaseModuleClass):
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             distribution=latent_distribution,
-            use_batch_norm=use_batch_norm_encoder,
-            use_layer_norm=use_layer_norm_encoder,
+            use_batch_norm=self.use_batch_norm_encoder,
+            use_layer_norm=self.use_layer_norm_encoder,
             return_dist=False,
             **vae_kwargs,
         )
@@ -184,8 +185,8 @@ class MODULE(BaseModuleClass):
             n_layers=1,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
-            use_batch_norm=use_batch_norm_encoder,
-            use_layer_norm=use_layer_norm_encoder,
+            use_batch_norm=self.use_batch_norm_encoder,
+            use_layer_norm=self.use_layer_norm_encoder,
             return_dist=True,
         )
 
@@ -226,7 +227,8 @@ class MODULE(BaseModuleClass):
         self.decoder = LinearDecoder(
             n_input=n_latent + n_cat + n_con,
             n_output=n_input,
-            use_batch_norm=use_batch_norm_decoder,
+            # n_cat_list=[n_batch],
+            use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=False,
             bias=False,
         )
@@ -512,7 +514,7 @@ class MODULE(BaseModuleClass):
     @torch.inference_mode()
     def get_loadings(self) -> np.ndarray:
         """Implementation from LSCVI"""
-        if self.use_batch_norm is True:
+        if self.use_batch_norm_decoder:
             w = self.decoder.factor_loading.fc_layers[0][0].weight
             bn = self.decoder.factor_loading.fc_layers[0][1]
             sigma = torch.sqrt(bn.running_var + bn.eps)
@@ -521,7 +523,7 @@ class MODULE(BaseModuleClass):
             b_identity = torch.diag(b)
             loadings = torch.matmul(b_identity, w)
         else:
-            loadings = self.decoder.factor_regressor.fc_layers[0][0].weight
+            loadings = self.decoder.factor_loading.fc_layers[0][0].weight
         loadings = loadings.detach().cpu().numpy()
         # TODO double check
         # if self.n_batch > 1:

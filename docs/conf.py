@@ -126,4 +126,12 @@ nitpick_ignore = [
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
+    ("py:class", "torch.Tensor"),
+    ("py:class", "torch.nn"),
+    #   ("py:class", "torch.nn.modules.module.Module"),
+    ("py:class", "mudata._core.mudata.MuData"),
+    ("py:class", "scvi.data._manager.AnnDataManager"),
+    ("py:class", "pandas.core.frame.DataFrame"),
+    ("py:class", "scvi.autotune._types.Tunable_"),
+    ("py:class", "scvi.module.base._base_module.LossOutput"),
 ]

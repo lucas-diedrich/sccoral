@@ -25,12 +25,10 @@ class MODULE(BaseModuleClass):
 
     The model takes the base structure from :cite:p:`Svensson20`, with three important
     modifications
-        1) Addition of l1-regularization to linear decoder, tunable with `alpha_l1`
-            parameter
-        2) Direct encoding of covariates in latent space. The original insteads incorporates
-        them into the neural network
 
-        3) Modified training procedure to account for covariate information.
+        1. Addition of l1-regularization to linear decoder, tunable with `alpha_l1` parameter
+        2. Direct encoding of covariates in latent space. The original instead incorporates them into the neural network
+        3. Modified training procedure to account for covariate information.
 
     Overall, this model aims to find interpretable links between macroscopic covariates and
     molecular gene expression by embedding the covariates directly in the latent space.

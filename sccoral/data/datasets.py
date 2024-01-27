@@ -6,7 +6,15 @@ import anndata as ad
 
 
 def splatter_simulation(save_path: str = "data/", filename: str = "simulation.h5ad") -> ad.AnnData:
-    """Load simulated data
+    """Load simulated count data with known gene programs
+
+    Features:
+
+    - obs: (index cell_id)
+    - sample_id, categorical_covariate, continuous_covariate
+    - var: (index gene_id)
+    - osbm: factor_usage Ground truth factor usage
+    - varm: factor_loading Ground truth factor loadings
 
     Parameters
     ----------
@@ -18,13 +26,6 @@ def splatter_simulation(save_path: str = "data/", filename: str = "simulation.h5
     Returns
     -------
     Annotated data matrix.
-        Simulated anndata object.
-        - obs (index: cell_id): sample_id, categorical_covariate, continuous_covariate
-        - var (index: gene_id)
-        - osbm
-            - factor_usage: Ground truth factor usage
-        - varm
-            - factor_loading: Ground truth factor loadings
 
     References
     ----------

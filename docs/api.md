@@ -12,10 +12,35 @@
     model.SCCORAL
 ```
 
+## Module
+
+```{eval-rst}
+.. module:: sccoral.module
+.. currentmodule:: sccoral
+
+.. autosummary::
+    :toctree: generated
+
+    module.MODULE
+
+```
+
+## Training plan
+
+```{eval-rst}
+.. module:: sccoral.train
+.. currentmodule:: sccoral
+
+.. autosummary::
+   :toctree: generated
+
+   train.ScCoralTrainingPlan
+```
+
 ## Datasets
 
 ```{eval-rst}
-.. module:: sccoral.dataP
+.. module:: sccoral.data
 .. currentmodule:: sccoral
 
 .. autosummary::
@@ -24,27 +49,3 @@
     data.splatter_simulation
 
 ```
-
-<!--
-## Tools
-
-```{eval-rst}
-.. module:: sccoral.tl
-.. currentmodule:: sccoral
-
-.. autosummary::
-    :toctree: generated
-``` -->
-
-<!-- ## Plotting
-
-```{eval-rst}
-.. module:: sccoral.pl
-.. currentmodule:: sccoral
-
-.. autosummary::
-    :toctree: generated
-
-    pl.basic_plot
-    pl.BasicClass
-``` -->

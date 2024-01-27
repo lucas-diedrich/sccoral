@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning][].
 -   Model/Module/nn - Covariate informed VAE with linear decoder, model based on LSCVI
 -   Added l1-regularization term to linear decoder
 
-## [TODO]
+### [TODO]
 
 #### Jupyter Notebooks
 

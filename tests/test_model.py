@@ -50,7 +50,6 @@ def test_pretraining_max_epochs(adata, max_pretraining_epochs, requires_grad):
     model.train(
         max_epochs=20,
         pretraining=True,
-        use_gpu=False,
         accelerator="cpu",
         early_stopping=False,
         pretraining_max_epochs=max_pretraining_epochs,
@@ -69,7 +68,6 @@ def test_pretraining_early_stopping(adata, pretraining_early_stopping, requires_
     model.train(
         max_epochs=20,
         pretraining=True,
-        use_gpu=False,
         accelerator="cpu",
         early_stopping=False,
         pretraining_early_stopping=pretraining_early_stopping,

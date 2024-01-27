@@ -300,7 +300,6 @@ class SCCORAL(BaseModelClass, TunableMixin):
         self,
         max_epochs: int = 500,
         pretraining: bool = True,
-        use_gpu: None | bool = None,
         accelerator: None | Literal["cpu", "gpu", "auto"] = "auto",
         devices="auto",
         validation_size: None | float = 0.1,
@@ -329,8 +328,6 @@ class SCCORAL(BaseModelClass, TunableMixin):
             Maximum epochs during training
         max_pretraining_epochs
             Maximum epochs during pretraining. If `None`, same as max_epochs
-        use_gpu
-            Whether to use gpu. If `None` automatically detects gpu
         accelerator
             cpu/gpu/auto: auto automatically detects available devices
         devices
@@ -405,7 +402,6 @@ class SCCORAL(BaseModelClass, TunableMixin):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             **trainer_kwargs,

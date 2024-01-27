@@ -25,6 +25,8 @@ dependencies = [
     "torch>=2.0",
     # for debug logging (referenced from the issue template)
     "session-info",
+    "hyperopt",
+    "ray.tune"
 ]
 
 [project.optional-dependencies]

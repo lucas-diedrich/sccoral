@@ -58,7 +58,7 @@ import sccoral
 # Load data
 adata = sccoral.data.splatter_simulation()
 
-# Setup model with scvi-tools syntax
+# Setup + train model with scvi-tools syntax
 sccoral.model.setup_anndata(adata,
                             categorical_covariates='categorical_covariate',
                             continuous_covariates='continuous_covariates'
@@ -67,10 +67,10 @@ model = sccoral.model.SCCORAL(adata, n_latent=7)
 model.train()
 
 # Get latent representation of cells/factor usages
-model.get_latent_representation()
+z = model.get_latent_representation()
 
 # Get interpretable gene programs (factor loadings)
-model.get_loadings()
+loadings = model.get_loadings()
 ```
 
 ## Release notes

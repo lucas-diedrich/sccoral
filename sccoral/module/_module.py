@@ -154,6 +154,9 @@ class MODULE(BaseModuleClass):
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder"
 
+        self.use_batch_norm = use_batch_norm
+        use_layer_norm = use_layer_norm
+
         # SETUP Neural nets
         # Setup latent space as follows:
         # dim 0...n_latent-1: free factors

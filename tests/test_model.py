@@ -76,3 +76,23 @@ def test_pretraining_early_stopping(adata, pretraining_early_stopping, requires_
         pretraining_early_stopping_patience=1,
     )
     assert model.module.z_encoder.encoder.fc_layers[0][0].weight.requires_grad == requires_grad
+
+
+def test_loadings(adata):
+    SCCORAL.setup_anndata(
+        adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
+    )
+    model = SCCORAL(adata, n_latent=5)
+    model.train(max_epochs=20, accelerator="cpu")
+
+    model.get_loadings()
+
+
+def test_representation(adata):
+    SCCORAL.setup_anndata(
+        adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
+    )
+    model = SCCORAL(adata, n_latent=5)
+    model.train(max_epochs=20, accelerator="cpu")
+
+    model.get_latent_representation()

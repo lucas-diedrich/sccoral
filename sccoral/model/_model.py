@@ -412,7 +412,6 @@ class SCCORAL(BaseModelClass, TunableMixin):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             **trainer_kwargs,

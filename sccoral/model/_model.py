@@ -322,6 +322,7 @@ class SCCORAL(BaseModelClass, TunableMixin):
         pretraining_early_stopping_patience: Tunable[int] = 5,
         plan_kwargs: None | dict[str, Any] = None,
         trainer_kwargs: None | dict[str, Any] = None,
+        **kwargs,
     ) -> None:
         """Train sccoral model
 
@@ -355,6 +356,8 @@ class SCCORAL(BaseModelClass, TunableMixin):
             Training keyword arguments passed to `sccoral.train.TrainingPlan`
         trainer_kwargs
             Additional keyword arguments passed to `scvi.train.TrainRunner`
+        kwargs
+            Not passed.
 
         Returns
         -------

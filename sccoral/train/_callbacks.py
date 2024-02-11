@@ -1,8 +1,11 @@
+import logging
 from typing import Literal
 
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BaseFinetuning, EarlyStopping
 from torch.optim.optimizer import Optimizer
+
+logger = logging.getLogger(__name__)
 
 
 class EarlyStoppingCheck(EarlyStopping):
@@ -105,3 +108,5 @@ class PretrainingFreezeWeights(BaseFinetuning):
                 modules=getattr(pl_module.module, self.submodule), optimizer=optimizer, train_bn=True
             )
             pl_module.is_pretrained = True
+
+            logger.info(f"Unfreeze weights - Epoch {self.n_pretraining_epochs}")

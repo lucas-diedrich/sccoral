@@ -89,7 +89,7 @@ class MODULE(BaseModuleClass):
         n_hidden: Tunable[int] = 128,
         n_latent: int = 10,
         n_layers: Tunable[int] = 1,
-        dropout_rate: float = 0.1,
+        dropout_rate: Tunable[float] = 0.1,
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",  # as LSCVI
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",  # as LSCVI
         dispersion: Tunable[Literal["gene", "gene-batch", "gene-cell"]] = "gene",  # TODO gene-labels not implemented

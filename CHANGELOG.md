@@ -20,10 +20,15 @@ and this project adheres to [Semantic Versioning][].
 
 -   Added tests for model setup
 -   Added tests based on implemented tests for callbacks
+-   Added tests for misc. model features
 
 **Model**
 
 -   Added custom `TrainingPlan` with pre-training procedure for covariates
+
+**Documentation**
+
+-   Add readthedocs website
 
 #### December 2023
 
@@ -36,10 +41,6 @@ and this project adheres to [Semantic Versioning][].
 
 -   Jupyter Notebook - Demonstration on simulated data
 -   Jupyter Notebook - Demonstration on IFN stimulation - Kang et al, 2018 data
-
-#### Documentation
-
--   Add readthedocs website
 
 #### Plotting (.pl)
 

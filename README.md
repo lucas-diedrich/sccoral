@@ -35,7 +35,7 @@ pip install scCoral
 ```
 -->
 
-Create a suitable conda environment with Python 3.9 or newer:
+Create a suitable conda environment with Python 3.10 or newer:
 
 ```{bash}
 conda create -n scvi-env python=3.11

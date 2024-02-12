@@ -21,7 +21,7 @@ urls.Home-page = "https://github.com/lucas-diedrich/sccoral"
 dependencies = [
     "scvi-tools>1.0",
     "torch",
-    "chex>=0.1.85",
+    "jax<0.4.15",
     "pytorch-lightning",
     "hyperopt",
     "ray[tune]",

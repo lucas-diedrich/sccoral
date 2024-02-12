@@ -20,6 +20,10 @@ urls.Source = "https://github.com/lucas-diedrich/sccoral"
 urls.Home-page = "https://github.com/lucas-diedrich/sccoral"
 dependencies = [
     "scvi-tools>1.0",
+    "torch",
+    "pytorch-lightning",
+    "optax",
+    "flax",
     "hyperopt",
     "ray[tune]",
     # for debug logging (referenced from the issue template)

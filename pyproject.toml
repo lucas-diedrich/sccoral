@@ -22,7 +22,7 @@ dependencies = [
     "scvi-tools>1.0",
     "torch",
     "pytorch-lightning",
-    "optax",
+    "optax==0.1.8",
     "flax",
     "hyperopt",
     "ray[tune]",

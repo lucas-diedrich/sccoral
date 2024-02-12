@@ -94,7 +94,7 @@ class MODULE(BaseModuleClass):
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",  # as LSCVI
         dispersion: Tunable[Literal["gene", "gene-batch", "gene-cell"]] = "gene",  # TODO gene-labels not implemented
         log_variational: bool = True,  # as LSCVI
-        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "encoder",
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "none"]] = "none",
         use_observed_lib_size: Tunable[bool] = True,  # TODO LSCVI overwrites this flag and uses False
         library_log_means: None | np.ndarray = None,
@@ -227,7 +227,7 @@ class MODULE(BaseModuleClass):
         self.decoder = LinearDecoder(
             n_input=n_latent + n_cat + n_con,
             n_output=n_input,
-            # n_cat_list=[n_batch],
+            n_cat_list=None,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=False,
             bias=False,

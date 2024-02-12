@@ -108,7 +108,7 @@ class SCCORAL(BaseModelClass, TunableMixin):
         log_variational: bool = True,
         latent_distribution: Literal["normal", "ln"] = "normal",
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",
-        use_batch_norm: Literal["encoder", "decoder", "both", "none"] = "encoder",
+        use_batch_norm: Literal["encoder", "decoder", "both", "none"] = "both",
         use_layer_norm: bool = False,
         use_observed_lib_size: bool = True,
         **vae_kwargs,

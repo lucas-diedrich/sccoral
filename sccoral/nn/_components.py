@@ -83,10 +83,10 @@ class LinearDecoder(nn.Module):
         self.factor_loading = FCLayers(
             n_in=n_input,
             n_out=n_output,
-            # n_cat_list=n_cat_list,
+            n_cat_list=n_cat_list,
             n_layers=1,
             use_activation=False,
-            use_batch_norm=use_batch_norm,
+            use_batch_norm=use_batch_norm,  # None
             use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
@@ -96,7 +96,7 @@ class LinearDecoder(nn.Module):
         self.px_dropout_decoder = FCLayers(
             n_in=n_input,
             n_out=n_output,
-            # n_cat_list=n_cat_list,
+            n_cat_list=n_cat_list,  # None
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,

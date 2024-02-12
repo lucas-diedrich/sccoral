@@ -1,11 +1,9 @@
 from collections.abc import Iterable
 from typing import Callable
 
-import optax
 import torch
 from scvi.train import TrainingPlan
 
-axOptimizerCreator = Callable[[], optax.GradientTransformation]
 TorchOptimizerCreator = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
 
 

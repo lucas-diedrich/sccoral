@@ -86,12 +86,20 @@ class PretrainingFreezeWeights(BaseFinetuning):
         Other keyword arguments passed to `lightning.pytorch.callbacks.BaseFinetuning`
     """
 
-    def __init__(self, submodule: str = "z_encoder", n_pretraining_epochs: int = 500, early_stopping=True, **kwargs):
+    def __init__(
+        self,
+        submodule: str = "z_encoder",
+        n_pretraining_epochs: int = 500,
+        early_stopping=True,
+        lr: float = 1e-3,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
 
         self.n_pretraining_epochs = n_pretraining_epochs
         self.early_stopping = early_stopping
         self.submodule = submodule
+        self.lr = lr
 
     def freeze_before_training(self, pl_module: LightningModule) -> None:
         module = getattr(pl_module.module, self.submodule)
@@ -105,8 +113,14 @@ class PretrainingFreezeWeights(BaseFinetuning):
             early_stopping_condition = pl_module.pretraining_early_stopping_condition
         if (epoch == self.n_pretraining_epochs) or early_stopping_condition:
             self.unfreeze_and_add_param_group(
-                modules=getattr(pl_module.module, self.submodule), optimizer=optimizer, train_bn=True
+                modules=getattr(pl_module.module, self.submodule),
+                optimizer=optimizer,
+                lr=self.lr,
+                initial_denom_lr=1,
+                train_bn=True,
             )
             pl_module.is_pretrained = True
 
-            logger.info(f"Unfreeze weights - Epoch {self.n_pretraining_epochs}")
+            logger.info(
+                f"Unfreeze weights - Epoch {self.n_pretraining_epochs} - Early stopping: {early_stopping_condition}"
+            )

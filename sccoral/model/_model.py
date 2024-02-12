@@ -366,6 +366,8 @@ class SCCORAL(BaseModelClass, TunableMixin):
         """
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
+        lr = plan_kwargs["lr"] if "lr" in plan_kwargs else 0.001
+
         trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else {}
         trainer_kwargs["early_stopping"] = (
             early_stopping if "early_stopping" not in trainer_kwargs.keys() else trainer_kwargs["early_stopping"]
@@ -394,6 +396,7 @@ class SCCORAL(BaseModelClass, TunableMixin):
                 submodule="z_encoder",
                 n_pretraining_epochs=pretraining_max_epochs,
                 early_stopping=pretraining_early_stopping,
+                lr=lr,
             )
 
             if "callbacks" not in trainer_kwargs:

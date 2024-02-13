@@ -239,6 +239,8 @@ class MODULE(BaseModuleClass):
         Categorical covariates are split into a dict of One-hot-encodings.
         Continuous covariates are split into a dict of continuous vectors
         """
+        x = tensors[REGISTRY_KEYS.X_KEY]
+
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         # Categorical covariates to individual, one-hot-encoded
@@ -253,9 +255,11 @@ class MODULE(BaseModuleClass):
             for xi, (cat_name, n_level) in zip(categorical_covariates, self.categorical_mapping.items()):
                 # TODO
                 if n_level == 2:
-                    categorical_covariates_ohe[cat_name] = xi.to(torch.float32)
+                    categorical_covariates_ohe[cat_name] = xi.to(dtype=torch.float32, device=self.device)
                 else:
-                    categorical_covariates_ohe[cat_name] = one_hot(index=xi, n_cat=n_level).to(torch.float32)
+                    categorical_covariates_ohe[cat_name] = one_hot(index=xi, n_cat=n_level).to(
+                        dtype=torch.float32, device=self.device
+                    )
 
         # Continuous covariates to individual tensors
         # dict[covariate_name: tensor[continuous_covariate]]
@@ -265,7 +269,6 @@ class MODULE(BaseModuleClass):
             continuous_covariates = torch.split(tensors[continous_key], split_size_or_sections=1, dim=1)
             continuous_covs_split = dict(zip(self.continuous_names, continuous_covariates))
 
-        x = tensors[REGISTRY_KEYS.X_KEY]
         input_dict = {
             "x": x,
             "batch_index": batch_index,

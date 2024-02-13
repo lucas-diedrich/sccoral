@@ -18,7 +18,7 @@ from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalJointObsField, CategoricalObsField, LayerField, NumericalJointObsField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import TrainRunner
 from torch import inference_mode
 
@@ -29,7 +29,7 @@ from sccoral.train import _callbacks as tcb
 logger = logging.getLogger(__name__)
 
 
-class SCCORAL(BaseModelClass, TunableMixin):
+class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
     """Single-cell COvariate-informed Regularized variational Autoencoder with Linear Decoder
 
     Parameters

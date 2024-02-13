@@ -267,7 +267,9 @@ class MODULE(BaseModuleClass):
         continuous_covs_split = None
         if continous_key in tensors.keys():
             continuous_covariates = torch.split(tensors[continous_key], split_size_or_sections=1, dim=1)
-            continuous_covs_split = dict(zip(self.continuous_names, continuous_covariates))
+            continuous_covs_split = {
+                k: v.to(device=self.device) for k, v in zip(self.continuous_names, continuous_covariates)
+            }
 
         input_dict = {
             "x": x,
@@ -294,7 +296,7 @@ class MODULE(BaseModuleClass):
             mean_ca, var_ca, latent_ca = [], [], []
             for category_name, ohe in categorical_covariates.items():
                 encoder = getattr(self, f"encoder_{category_name}")
-                mean_ca_i, var_ca_i, latent_ca_i = encoder(ohe)
+                mean_ca_i, var_ca_i, latent_ca_i = encoder(ohe.to(device=self.device))
 
                 mean_ca.append(mean_ca_i)
                 var_ca.append(var_ca_i)

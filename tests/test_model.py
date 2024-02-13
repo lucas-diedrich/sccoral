@@ -78,28 +78,41 @@ def test_pretraining_early_stopping(adata, pretraining_early_stopping, requires_
     assert model.module.z_encoder.encoder.fc_layers[0][0].weight.requires_grad == requires_grad
 
 
-def test_loadings(adata):
+@pytest.fixture(scope="module")
+def basic_train(adata):
     SCCORAL.setup_anndata(
         adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
     )
     model = SCCORAL(adata, n_latent=5)
     model.train(max_epochs=20, accelerator="cpu")
 
-    loadings = model.get_loadings()
+    return model
+
+
+def test_loadings(basic_train):
+    loadings = basic_train.get_loadings()
 
     assert loadings.shape == (100, 7)
     assert "categorical_covariate" in loadings.columns
     assert "continuous_covariate" in loadings.columns
 
 
-def test_representation(adata):
-    SCCORAL.setup_anndata(
-        adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
-    )
-    model = SCCORAL(adata, n_latent=5)
-    model.train(max_epochs=20, accelerator="cpu")
-
-    representation = model.get_latent_representation()
+def test_representation(basic_train):
+    representation = basic_train.get_latent_representation()
     assert representation.shape == (400, 7)
     assert "categorical_covariate" in representation.columns
     assert "continuous_covariate" in representation.columns
+
+
+def test_get_reconstruction_error(basic_train):
+    # Setup new anndata
+    adata = synthetic_iid(batch_size=50, n_genes=100, n_proteins=0, n_regions=0, n_batches=1, n_labels=2)
+    adata.obs["categorical_covariate"] = np.random.choice(["A", "B"], size=adata.n_obs, replace=True)
+    adata.obs["continuous_covariate"] = 1
+
+    SCCORAL.setup_anndata(
+        adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
+    )
+
+    error = basic_train.get_reconstruction_error(adata)
+    assert isinstance(error["reconstruction_loss"], float)

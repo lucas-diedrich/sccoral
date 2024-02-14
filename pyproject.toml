@@ -19,8 +19,7 @@ urls.Documentation = "https://scCoral.readthedocs.io/"
 urls.Source = "https://github.com/lucas-diedrich/sccoral"
 urls.Home-page = "https://github.com/lucas-diedrich/sccoral"
 dependencies = [
-    "jax<0.4.15",
-    "scvi-tools>1.0",
+    "scvi-tools>=1.1",
     "torch",
     "pytorch-lightning",
     "hyperopt",

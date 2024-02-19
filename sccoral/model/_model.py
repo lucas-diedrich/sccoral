@@ -187,11 +187,14 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         var_names = self.adata.var_names
         column_names = None
         if set_column_names:
+            categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
+            continuous_names = self.module.categorical_names if self.module.continuous_names is not None else []
+
             column_names = [
                 # Free factors
                 *list(range(self.module.n_latent)),
-                *self.module.categorical_names,
-                *self.module.continuous_names,
+                *categorical_names,
+                *continuous_names,
             ]
 
         loadings = pd.DataFrame(self.module.get_loadings(), index=var_names, columns=column_names)
@@ -246,11 +249,14 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
         column_names = None
         if set_column_names:
+            categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
+            continuous_names = self.module.categorical_names if self.module.continuous_names is not None else []
+
             column_names = [
                 # Free factors
                 *list(range(self.module.n_latent)),
-                *self.module.categorical_names,
-                *self.module.continuous_names,
+                *categorical_names,
+                *continuous_names,
             ]
 
         return pd.DataFrame(torch.cat(latent).detach().numpy(), index=adata.obs_names, columns=column_names)

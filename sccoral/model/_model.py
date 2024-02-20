@@ -188,7 +188,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         column_names = None
         if set_column_names:
             categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
-            continuous_names = self.module.categorical_names if self.module.continuous_names is not None else []
+            continuous_names = self.module.continuous_names if self.module.continuous_names is not None else []
 
             column_names = [
                 # Free factors
@@ -250,7 +250,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         column_names = None
         if set_column_names:
             categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
-            continuous_names = self.module.categorical_names if self.module.continuous_names is not None else []
+            continuous_names = self.module.continuous_names if self.module.continuous_names is not None else []
 
             column_names = [
                 # Free factors

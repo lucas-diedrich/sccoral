@@ -11,7 +11,7 @@
 
 ## Getting started
 
-![sccoral-model](https://imgur.com/07uGyup)
+![sccoral-model](./docs/_static/model.svg)
 
 ### Motivation
 

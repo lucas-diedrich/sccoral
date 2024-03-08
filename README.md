@@ -11,9 +11,11 @@
 
 ## Getting started
 
+![sccoral-model](https://imgur.com/07uGyup)
+
 ### Motivation
 
-Increasing throughput in single-cell technologies enables researchers to create population-scale single-cell RNAseq datasets. An ongoing challenge in the analysis of this data is to link molecular features (i.e. single-cell gene expression) with patient-level covariates (e.g. disease severity, age, sex, ...). `sc-coral` aims to find an interpretable link between subject/sample-level features and gene expression by embedding cellular metadata and gene expression in the same latent space of a variational autoencoder architecture {cite:p}`lopez2019`. By leveraging and improving the network architecture of linear scVI {cite:p}`svensson2020`, we aim to find a direct and interpretable link between embedded covariates and gene expression.
+Increasing throughput in single-cell technologies enables researchers to create population-scale single-cell RNAseq datasets. An ongoing challenge in the analysis of this data is to link molecular features (i.e. single-cell gene expression) with patient-level covariates (e.g. disease severity, age, sex, ...). `sccoral` aims to find an interpretable link between subject/sample-level features and gene expression by embedding cellular metadata and gene expression in the same latent space of a variational autoencoder architecture {cite:p}`lopez2019`. By leveraging and improving the network architecture of linear scVI {cite:p}`svensson2020`, we aim to find a direct and interpretable link between embedded covariates and gene expression.
 
 <!-- Please refer to the [documentation][link-docs]. In particular, the
 

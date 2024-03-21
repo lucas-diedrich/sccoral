@@ -3,6 +3,38 @@ import os
 from urllib.request import urlretrieve
 
 import anndata as ad
+import numpy as np
+from scvi.data import synthetic_iid
+
+
+def synthetic_data(n_cat=2, n_con=10, save: str | None = None, seed: int = 42) -> ad.AnnData:
+    """Generate synthetic data based on the scvi-tools synthetic data implementation
+
+    Parameters
+    ----------
+    n_cat
+        Number of levels in categorical covariate
+    save:
+        Whether to save adata
+
+    Returns
+    -------
+    Annotated data matrix.
+
+    References
+    ----------
+    [1] Gayoso, A. et al. A Python library for probabilistic analysis of single-cell omics data. Nat Biotechnol 40, 163–166 (2022).
+    """
+    np.random.seed(seed)
+    adata = synthetic_iid(batch_size=50, n_genes=300, n_batches=2, n_labels=5)
+
+    adata.obs["categorical_covariate"] = np.random.randint(0, n_cat, size=adata.n_obs)
+    adata.obs["continuous_covariate"] = np.linspace(0, 1, adata.n_obs)
+
+    if save is not None:
+        adata.write_h5ad(save)
+
+    return adata
 
 
 def splatter_simulation(save_path: str = "data/", filename: str = "simulation.h5ad") -> ad.AnnData:

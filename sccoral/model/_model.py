@@ -311,20 +311,20 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
     def train(
         self,
         max_epochs: int = 500,
-        pretraining: bool = True,
+        pretraining: Tunable[bool] = True,
         use_gpu: bool = True,
         accelerator: None | Literal["cpu", "gpu", "auto"] = "auto",
         devices="auto",
         validation_size: None | float = 0.1,
         batch_size: int = 128,
-        early_stopping: bool = True,
+        early_stopping: Tunable[bool] = True,
         # TODO refactor into pretraining_kwargs
-        pretraining_max_epochs: int = 500,
-        pretraining_early_stopping: bool = True,
+        pretraining_max_epochs: Tunable[int] = 500,
+        pretraining_early_stopping: Tunable[bool] = True,
         pretraining_early_stopping_metric: Tunable[
             None | Literal["reconstruction_loss_train", "train_loss_epoch", "elbo_train"]
         ] = "reconstruction_loss_train",
-        pretraining_min_delta: float = 0.0,
+        pretraining_min_delta: Tunable[float] = 0.0,
         pretraining_early_stopping_patience: Tunable[int] = 5,
         plan_kwargs: None | dict[str, Any] = None,
         trainer_kwargs: None | dict[str, Any] = None,

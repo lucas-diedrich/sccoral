@@ -11,7 +11,7 @@
 
 ## Getting started
 
-![sccoral-model](./docs/_static/model.svg)
+![sccoral-model](./docs/_static/img/model-architecture.png)
 
 ### Motivation
 

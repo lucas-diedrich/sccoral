@@ -106,7 +106,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         dropout_rate: Tunable[float] = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-cell"] = "gene",  # TODO gene-label
         log_variational: bool = True,
-        latent_distribution: Literal["normal", "ln"] = "normal",
+        latent_distribution: Literal["normal", "ln"] = "ln",
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",
         use_batch_norm: Literal["encoder", "decoder", "both", "none"] = "both",
         use_layer_norm: bool = False,

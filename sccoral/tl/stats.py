@@ -60,6 +60,7 @@ def principal_component_regression(
 
     return covariate_explained_variance
 
+
 # TODO Write test
 def _pcr(x, X_pca, explained_variance) -> float:
     """Run PCR"""

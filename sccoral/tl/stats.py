@@ -56,6 +56,13 @@ def principal_component_regression(
     if isinstance(adata.obs[covariate].dtype, pd.CategoricalDtype):
         x = OneHotEncoder(sparse_output=False, drop="if_binary").fit_transform(x)
 
+    covariate_explained_variance = _pcr(x, X_pca, explained_variance)
+
+    return covariate_explained_variance
+
+# TODO Write test
+def _pcr(x, X_pca, explained_variance) -> float:
+    """Run PCR"""
     scores = []
     for y in X_pca:
         scores.append(LinearRegression().fit(x, y).score(x, y))

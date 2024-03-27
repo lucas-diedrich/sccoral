@@ -200,7 +200,7 @@ class MODULE(BaseModuleClass):
                     n_levels = 1
 
                 name = f"encoder_{cat_name}"
-                model = LinearEncoder(n_levels, 1, mean_bias=True, var_bias=True)
+                model = LinearEncoder(n_levels, 1, distribution=latent_distribution, mean_bias=True, var_bias=True)
 
                 # Register encoder in class
                 setattr(self, name, model)
@@ -215,7 +215,7 @@ class MODULE(BaseModuleClass):
         if continuous_names is not None:
             for con_name, dim in zip(continuous_names, range(n_latent + n_cat, n_latent + n_cat + n_con)):
                 name = f"encoder_{con_name}"
-                model = LinearEncoder(1, 1)
+                model = LinearEncoder(1, 1, latent_distribution=latent_distribution)
 
                 # Register encoder in class
                 setattr(self, name, model)

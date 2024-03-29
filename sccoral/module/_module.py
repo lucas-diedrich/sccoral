@@ -200,7 +200,10 @@ class MODULE(BaseModuleClass):
                     n_levels = 1
 
                 name = f"encoder_{cat_name}"
-                model = LinearEncoder(n_levels, 1, distribution=latent_distribution, mean_bias=True, var_bias=True)
+
+                model = LinearEncoder(
+                    n_levels, 1, latent_distribution=latent_distribution, mean_bias=True, var_bias=True
+                )
 
                 # Register encoder in class
                 setattr(self, name, model)

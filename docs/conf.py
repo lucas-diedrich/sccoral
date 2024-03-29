@@ -108,6 +108,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 # a list of builtin themes.
 #
 html_theme = "sphinx_book_theme"
+html_logo = "_static/img/logo.png"
 html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 

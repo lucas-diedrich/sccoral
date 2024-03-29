@@ -82,7 +82,7 @@ class PretrainingFreezeWeights(BaseFinetuning):
         Maximal number of pretraining epochs
     early_stopping
         Whether to use `EarlyStoppingCheck` as additional stopping metric
-    freeze_batch_norm:
+    train_batch_norm:
         Whether to freeze batch norm layers (defaults to False)
     **kwargs
         Other keyword arguments passed to `lightning.pytorch.callbacks.BaseFinetuning`
@@ -94,7 +94,7 @@ class PretrainingFreezeWeights(BaseFinetuning):
         n_pretraining_epochs: int = 500,
         early_stopping=True,
         lr: float = 1e-3,
-        freeze_batch_norm: bool = False,
+        train_batch_norm: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -103,11 +103,11 @@ class PretrainingFreezeWeights(BaseFinetuning):
         self.early_stopping = early_stopping
         self.submodule = submodule
         self.lr = lr
-        self.freeze_batch_norm = freeze_batch_norm
+        self.freeze_batch_norm = train_batch_norm
 
     def freeze_before_training(self, pl_module: LightningModule) -> None:
         module = getattr(pl_module.module, self.submodule)
-        self.freeze(module, train_bn=self.freeze_batch_norm)
+        self.freeze(module, train_bn=self.train_batch_norm)
 
     def finetune_function(self, pl_module: LightningModule, epoch: int, optimizer: Optimizer) -> None:
         if pl_module.is_pretrained:  # skip if pretraining is finished

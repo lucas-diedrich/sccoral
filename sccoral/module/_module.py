@@ -62,7 +62,7 @@ class MODULE(BaseModuleClass):
     latent_distribution
         Whether the latent distribution is normal (scVI) or lognormal (as suggested by LSCVI).
         As the original authors found that the log(data+1) latent distribution is less powerful,
-        we use `normal` per default.
+        we use `lognormal` per default.
     dispersion
         Fit dispersion parameters on a per-gene, per-gene/individual batch, per-gene/individual cell
         basis
@@ -91,7 +91,7 @@ class MODULE(BaseModuleClass):
         n_layers: Tunable[int] = 1,
         dropout_rate: Tunable[float] = 0.1,
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",  # as LSCVI
-        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",  # as LSCVI
+        latent_distribution: Tunable[Literal["normal", "ln"]] = "ln",  # as LSCVI
         dispersion: Tunable[Literal["gene", "gene-batch", "gene-cell"]] = "gene",  # TODO gene-labels not implemented
         log_variational: bool = True,  # as LSCVI
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
@@ -200,6 +200,7 @@ class MODULE(BaseModuleClass):
                     n_levels = 1
 
                 name = f"encoder_{cat_name}"
+
                 model = LinearEncoder(
                     n_levels, 1, latent_distribution=latent_distribution, mean_bias=True, var_bias=True
                 )

@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning][].
 
 ### Added
 
+#### March 2024
+
+-   Hyperparameter tuning
+
+-   Changed default latent distribution from `"normal"` to logit normal (`"ln"`)
+
 #### January 2024
 
 -   `sccoral` in `sc-verse` cookiecutter template

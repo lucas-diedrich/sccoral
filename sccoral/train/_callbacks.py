@@ -103,7 +103,7 @@ class PretrainingFreezeWeights(BaseFinetuning):
         self.early_stopping = early_stopping
         self.submodule = submodule
         self.lr = lr
-        self.freeze_batch_norm = train_batch_norm
+        self.train_batch_norm = train_batch_norm
 
     def freeze_before_training(self, pl_module: LightningModule) -> None:
         module = getattr(pl_module.module, self.submodule)

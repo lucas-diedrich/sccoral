@@ -16,7 +16,7 @@ class LinearEncoder(nn.Module):
         Number of input dimensions
     n_output
         Number of output dimensions
-    distributions
+    latent_distribution
         Normal distribution `normal` or lognormal `ln` (:cite:Svensson2020)
     return_dist
         Whether to return the distribution or samples
@@ -30,7 +30,7 @@ class LinearEncoder(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        distribution: Literal["ln", "normal"] = "normal",
+        latent_distribution: Literal["ln", "normal"] = "ln",
         return_dist: bool = False,
         mean_bias: bool = True,
         var_bias: bool = True,
@@ -43,7 +43,7 @@ class LinearEncoder(nn.Module):
 
         self.var_eps = var_eps
 
-        if distribution == "ln":
+        if latent_distribution == "ln":
             self.z_transformation = nn.Softmax(dim=-1)
         else:
             # Identity function

@@ -43,10 +43,17 @@ and this project adheres to [Semantic Versioning][].
 
 ### [TODO]
 
+#### Project data 
+-   Implement data projection
+
 #### Jupyter Notebooks
 
 -   Jupyter Notebook - Demonstration on simulated data
 -   Jupyter Notebook - Demonstration on IFN stimulation - Kang et al, 2018 data
+
+#### tl
+
+-   Find markers
 
 #### Plotting (.pl)
 

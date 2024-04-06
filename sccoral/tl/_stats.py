@@ -9,11 +9,11 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import OneHotEncoder
 
 logger = logging.Logger(__name__)
-logger.setLevel("warn")
+logger.setLevel(logging.WARNING)
 
 
 def principal_component_regression(
-    adata: ad.AnnData, covariate: str, transform_categorical: bool = True, raise_error: bool = True
+    adata: ad.AnnData, covariate: str, transform_categorical: bool = True, run_pca: bool = False
 ) -> float:
     """Run principal component regression
 
@@ -27,9 +27,9 @@ def principal_component_regression(
         one hot encodings (must have `pd.CategoricalDtype`)
     transform_categorical
         Whether to transform categorical covariates
-    raise_error
-        Whether to raise an error if there is not PCA in the anndata
-        (otherwise, run default parameters)
+    run_pca
+        Whether to run PCA with default parameters if not found in anndata
+        (otherwise, raises error)
 
     Returns
     -------
@@ -43,7 +43,7 @@ def principal_component_regression(
     # Validate that PCA was run on data
     # Run PCA
     if "X_pca" not in adata.obsm:
-        if raise_error:
+        if not run_pca:
             raise ValueError("Run PCA first")
         logger.warning("X_pca not found. Run PCA with default parameters")
         sc.pp.highly_variable_genes(adata)

@@ -11,6 +11,11 @@ def _no_grad_absolute(tensor: Tensor) -> Tensor:
     """Return absolute value of tensor"""
     with torch.no_grad():
         return torch.absolute(tensor)
+    
+def _no_grad_zero(tensor: Tensor) -> Tensor:
+    """Return absolute value of tensor"""
+    with torch.no_grad():
+        return torch.zeros_like(tensor)
 
 
 class LinearEncoder(nn.Module):
@@ -51,6 +56,7 @@ class LinearEncoder(nn.Module):
         # as the class with "high" factor activity.
         if init_positive:
             self.mean.weight.data = _no_grad_absolute(self.mean.weight.data)
+            self.mean.bias.data = _no_grad_zero(self.mean.bias.data)
 
         self.var = nn.Linear(n_input, n_output, bias=var_bias)
 

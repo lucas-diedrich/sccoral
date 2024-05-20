@@ -460,9 +460,9 @@ class MODULE(BaseModuleClass):
         # Sum over log likelihood of data
         reconstruction_loss = -generative_outputs["px"].log_prob(x).sum(-1)
 
-        # L1 norm
+        # L1 norm (warm up period as in kl_divergence)
         weights = self.decoder.factor_loading.fc_layers[0][0].weight
-        l1_loss = F.l1_loss(weights, torch.zeros_like(weights, device=weights.device))
+        l1_loss = kl_weight*F.l1_loss(weights, torch.zeros_like(weights, device=weights.device))
 
         loss = torch.mean(reconstruction_loss + weighted_kl_local + self.alpha_l1 * l1_loss)
 

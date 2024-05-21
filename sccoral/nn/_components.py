@@ -56,7 +56,7 @@ class LinearEncoder(nn.Module):
         # as the class with "high" factor activity.
         if init_positive:
             self.mean.weight.data = _no_grad_absolute(self.mean.weight.data)
-            self.mean.bias.data = _no_grad_zero(self.mean.bias.data)
+            self.mean.bias.data = torch.nn.init.zeroes_(self.mean.bias.data)
 
         self.var = nn.Linear(n_input, n_output, bias=var_bias)
 

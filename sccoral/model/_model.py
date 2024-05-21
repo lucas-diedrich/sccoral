@@ -403,7 +403,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
                 n_pretraining_epochs=pretraining_max_epochs,
                 early_stopping=pretraining_early_stopping,
                 lr=lr,
-                train_batch_norm=True,
+                train_batch_norm=False,
             )
 
             if "callbacks" not in trainer_kwargs:

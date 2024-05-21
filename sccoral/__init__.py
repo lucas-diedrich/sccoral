@@ -1,8 +1,8 @@
-from . import data, model, module
+from importlib.metadata import version
 
-# FIX
-__version__ = "0.0.1"
-# __version__ = _get_version()
-# del _get_version
+from . import data, model, module, tl
 
-__all__ = ["model", "module", "data"]
+package_name = "scvi-tools"
+__version__ = version(package_name)
+
+__all__ = ["model", "module", "data", "tl"]

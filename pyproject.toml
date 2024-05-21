@@ -22,8 +22,9 @@ dependencies = [
     "scvi-tools>=1.1",
     "torch",
     "pytorch-lightning",
-    "hyperopt",
-    "ray[tune]",
+    "scipy",
+    "scikit-learn",
+    "scanpy",
     # for debug logging (referenced from the issue template)
     "session-info",
 ]
@@ -32,6 +33,10 @@ dependencies = [
 dev = [
     "pre-commit",
     "twine>=4.0.2",
+]
+tune = [
+    "hyperopt",
+    "ray[tune]"
 ]
 doc = [
     "docutils>=0.8,!=0.18.*,!=0.19.*",

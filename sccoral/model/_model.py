@@ -220,12 +220,23 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         ----------
         adata
             AnnData object to embed. If `None` use stored `anndata.AnnData`
-        set_column_names
-            Whether to set the column names to covariate names
         indices
-            Indices of cells to retrieve
+            Indices of cells to retrieve (see scvi-tools)
+        give_mean
+            Whether to give the full distribution or mean of distribution. Defaults to mean
+            See scvi-tools
+        mc_samples
+            For distributions with no closed analytical solution - how many samples to draw (see scvi-tools)
         batch_size
             Batch size during inference.
+        return_dist
+            Whether to return single-measurement values (False) or parameters of the distribution (True)
+            See scvi-tools
+        set_column_names
+            Whether to set the column names to covariate names (defaults to True)
+        suffix
+            Whether to add a suffix (e.g. `__factor`) so that columns in dataframe are better distinguishable 
+            from metadata info. Per default, no suffix is added.
 
         Returns
         -------

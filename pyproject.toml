@@ -23,7 +23,7 @@ dependencies = [
     "torch",
     "pytorch-lightning",
     "scipy",
-    "sklearn",
+    "scikit-learn",
     "scanpy",
     # for debug logging (referenced from the issue template)
     "session-info",

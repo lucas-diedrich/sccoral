@@ -3,8 +3,19 @@ from typing import Literal, Optional
 
 import torch
 from scvi.nn import FCLayers
-from torch import nn
+from torch import Tensor, nn
 from torch.distributions import Normal
+
+
+def _no_grad_absolute(tensor: Tensor) -> Tensor:
+    """Return absolute value of tensor"""
+    with torch.no_grad():
+        return torch.absolute(tensor)
+    
+def _no_grad_zero(tensor: Tensor) -> Tensor:
+    """Return absolute value of tensor"""
+    with torch.no_grad():
+        return torch.zeros_like(tensor)
 
 
 class LinearEncoder(nn.Module):
@@ -35,10 +46,18 @@ class LinearEncoder(nn.Module):
         mean_bias: bool = True,
         var_bias: bool = True,
         var_eps: float = 1e-4,
+        init_positive: bool = True,
     ):
         super().__init__()
 
         self.mean = nn.Linear(n_input, n_output, bias=mean_bias)
+
+        # Implement expected behaviour for positive class to be initialized
+        # as the class with "high" factor activity.
+        if init_positive:
+            self.mean.weight.data = _no_grad_absolute(self.mean.weight.data)
+            self.mean.bias.data = _no_grad_zero(self.mean.bias.data)
+
         self.var = nn.Linear(n_input, n_output, bias=var_bias)
 
         self.var_eps = var_eps

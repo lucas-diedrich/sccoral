@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from typing import Any, Literal
 
 import anndata as ad
+import numpy as np
 import pandas as pd
 import torch
 from scvi import REGISTRY_KEYS
@@ -204,62 +205,68 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
     @inference_mode()
     def get_latent_representation(
         self,
-        adata: None | ad.AnnData = None,
+        adata: ad.AnnData | None = None,
+        indices: Iterable[int] | None = None,
+        give_mean: bool = True,
+        mc_samples: int = 5000,
+        batch_size: int | None = None,
+        return_dist: bool = False,
         set_column_names: bool = True,
-        indices: Iterable = None,
-        batch_size: int = None,
-    ) -> pd.DataFrame:
+        suffix: str | None = None,
+    ) -> pd.DataFrame | tuple[np.ndarray, np.ndarray]:
         """Get latent representation of cells in anndata object
 
         Parameters
         ----------
         adata
             AnnData object to embed. If `None` use stored `anndata.AnnData`
-        set_column_names
-            Whether to set the column names to covariate names
         indices
-            Indices of cells to retrieve
+            Indices of cells to retrieve (see scvi-tools)
+        give_mean
+            Whether to give the full distribution or mean of distribution. Defaults to mean
+            See scvi-tools
+        mc_samples
+            For distributions with no closed analytical solution - how many samples to draw (see scvi-tools)
         batch_size
             Batch size during inference.
+        return_dist
+            Whether to return single-measurement values (False) or parameters of the distribution (True)
+            See scvi-tools
+        set_column_names
+            Whether to set the column names to covariate names (defaults to True)
+        suffix
+            Whether to add a suffix (e.g. `__factor`) so that columns in dataframe are better distinguishable 
+            from metadata info. Per default, no suffix is added.
 
         Returns
         -------
         Pandas DataFrame
             `n_cells` x `n_latent`
         """
-        if not self.is_trained_:
-            raise RuntimeError("Train model first")
+        res = super().get_latent_representation(adata, indices, give_mean, mc_samples, batch_size, return_dist)
 
         if adata is None:
             adata = self.adata
-        adata = self._validate_anndata(adata)
 
-        # Instantiate data loader
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        latent = []
+        if return_dist:
+            return res
 
-        # Inference
-        for tensors in scdl:
-            inference_inputs = self.module._get_inference_input(tensors)
-            outputs = self.module.inference(**inference_inputs)
+        else:
+            column_names = None
+            if set_column_names:
+                categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
+                continuous_names = self.module.continuous_names if self.module.continuous_names is not None else []
 
-            z = outputs["z"]
+                column_names = [
+                    # Free factors
+                    *list(range(self.module.n_latent)),
+                    *categorical_names,
+                    *continuous_names,
+                ]
+            if suffix is not None:
+                column_names = [f"{col}{suffix}" for col in column_names]
 
-            latent.append(z.cpu())
-
-        column_names = None
-        if set_column_names:
-            categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
-            continuous_names = self.module.continuous_names if self.module.continuous_names is not None else []
-
-            column_names = [
-                # Free factors
-                *list(range(self.module.n_latent)),
-                *categorical_names,
-                *continuous_names,
-            ]
-
-        return pd.DataFrame(torch.cat(latent).detach().numpy(), index=adata.obs_names, columns=column_names)
+            return pd.DataFrame(res, index=adata.obs_names, columns=column_names)
 
     @inference_mode()
     def get_explained_variance_per_factor(

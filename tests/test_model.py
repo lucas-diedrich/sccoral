@@ -104,6 +104,11 @@ def test_representation(basic_train):
     assert "continuous_covariate" in representation.columns
 
 
+def test_representation_suffix(basic_train):
+    representation = basic_train.get_latent_representation(suffix='__factor')
+    assert "categorical_covariate__factor" in representation.columns
+    assert "continuous_covariate__factor" in representation.columns
+
 def test_get_reconstruction_error(basic_train):
     # Setup new anndata
     adata = synthetic_iid(batch_size=50, n_genes=100, n_proteins=0, n_regions=0, n_batches=1, n_labels=2)

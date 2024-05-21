@@ -56,7 +56,7 @@ def splatter_simulation(save_path: str = "data/", filename: str = "simulation.h5
     .. [1] Zappia, L., Phipson, B. & Oshlack, A. Splatter: simulation of single-cell RNA sequencing data. Genome Biol 18, 174 (2017).
     .. [2] Gerard, D. Data-based RNA-seq simulations by binomial thinning. BMC Bioinformatics 21, 206 (2020).
     """
-    url = "https://figshare.com/ndownloader/files/44184947?private_link=199140ec1dc329efcfbd"
+    url = "https://www.dropbox.com/scl/fi/tf6qks693176jk61e2gdd/simulation.1.simplified.h5ad?rlkey=xe0b03y2baeg92h8bdjfi76f5&st=9ihmva4s&dl=1"
 
     if not os.path.exists(save_path):
         os.mkdir(save_path)

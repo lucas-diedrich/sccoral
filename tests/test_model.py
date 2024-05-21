@@ -55,7 +55,7 @@ def test_pretraining_max_epochs(adata, max_pretraining_epochs, requires_grad):
         pretraining_max_epochs=max_pretraining_epochs,
         pretraining_early_stopping=False,
     )
-    assert model.module.z_encoder.encoder.fc_layers[0][0].weight.requires_grad == requires_grad
+    assert all([param.requires_grad == requires_grad for name, param in model.module.z_encoder.named_parameters()])
 
 
 @pytest.mark.parametrize(["pretraining_early_stopping", "requires_grad"], [[True, True], [False, False]])
@@ -75,7 +75,7 @@ def test_pretraining_early_stopping(adata, pretraining_early_stopping, requires_
         pretraining_min_delta=np.inf,
         pretraining_early_stopping_patience=1,
     )
-    assert model.module.z_encoder.encoder.fc_layers[0][0].weight.requires_grad == requires_grad
+    assert all([param.requires_grad == requires_grad for name, param in model.module.z_encoder.named_parameters()])
 
 
 @pytest.fixture(scope="module", params=["normal", "ln"])

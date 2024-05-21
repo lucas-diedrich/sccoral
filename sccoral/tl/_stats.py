@@ -4,7 +4,6 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 import scanpy as sc
-import sklearn
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import OneHotEncoder
 

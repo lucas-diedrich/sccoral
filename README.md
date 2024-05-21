@@ -17,9 +17,14 @@
 
 Increasing throughput in single-cell technologies enables researchers to create population-scale single-cell RNAseq datasets. An ongoing challenge in the analysis of this data is to link molecular features (i.e. single-cell gene expression) with patient-level covariates (e.g. disease severity, age, sex, ...). `sccoral` aims to find an interpretable link between subject/sample-level features and gene expression by embedding cellular metadata and gene expression in the same latent space of a variational autoencoder architecture {cite:p}`lopez2018`. By leveraging and improving the network architecture of linear scVI {cite:p}`svensson2020`, we aim to find a direct and interpretable link between embedded covariates and gene expression.
 
+<<<<<<< ours
 <!-- Please refer to the [documentation][link-docs]. In particular, the
 
 -   [API documentation][link-api]. -->
+=======
+You need to have Python 3.10 or newer installed on your system. If you don't have
+Python installed, we recommend installing [Mambaforge](https://github.com/conda-forge/miniforge#mambaforge).
+>>>>>>> theirs
 
 ### Installation
 

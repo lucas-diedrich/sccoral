@@ -171,7 +171,7 @@ class MODULE(BaseModuleClass):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
-            distribution="normal",
+            distribution=latent_distribution,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
             return_dist=False,
@@ -202,7 +202,7 @@ class MODULE(BaseModuleClass):
                 name = f"encoder_{cat_name}"
 
                 model = LinearEncoder(
-                    n_levels, 1, latent_distribution="normal", mean_bias=True, var_bias=True
+                    n_levels, 1, latent_distribution=latent_distribution, mean_bias=True, var_bias=True
                 )
 
                 # Register encoder in class
@@ -218,7 +218,7 @@ class MODULE(BaseModuleClass):
         if continuous_names is not None:
             for con_name, dim in zip(continuous_names, range(n_latent + n_cat, n_latent + n_cat + n_con)):
                 name = f"encoder_{con_name}"
-                model = LinearEncoder(1, 1, latent_distribution="normal")
+                model = LinearEncoder(1, 1, latent_distribution=latent_distribution)
 
                 # Register encoder in class
                 setattr(self, name, model)
@@ -337,9 +337,6 @@ class MODULE(BaseModuleClass):
         mean_z = torch.cat([mean_counts, *mean_ca, *mean_cc], dim=1)
         var_z = torch.cat([var_counts, *var_ca, *var_cc], dim=1)
         z = torch.cat([latent_counts, *latent_ca, *latent_cc], dim=1)
-
-        if self.latent_distribution == "ln":
-            z = F.softmax(z, dim=-1)
 
         qz = Normal(loc=mean_z, scale=torch.sqrt(var_z))
 

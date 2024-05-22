@@ -63,7 +63,7 @@ class LinearEncoder(nn.Module):
         self.var_eps = var_eps
 
         if latent_distribution == "ln":
-            self.z_transformation = nn.Softmax(dim=-1)
+            self.z_transformation = nn.Sigmoid()
         else:
             # Identity function
             self.z_transformation = lambda x: x

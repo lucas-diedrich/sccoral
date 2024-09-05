@@ -1,15 +1,30 @@
 ```{include} ../README.md
-
 ```
 
 ```{toctree}
-:hidden: true
-:maxdepth: 1
+:caption: API
+:hidden: false
+:maxdepth: 3
 
 api.md
+```
+
+```{toctree}
+:caption: Tutorials
+:hidden: false
+:maxdepth: 3
+
+tutorials/index.md
+```
+
+```{toctree}
+:caption: About
+:hidden: false
+:maxdepth: 3
+
 changelog.md
 contributing.md
 references.md
-
-<!-- notebooks/example -->
+GitHub <https://github.com/lucas-diedrich/sccoral.git>
+Discussion <https://github.com/lucas-diedrich/sccoral/issues>
 ```

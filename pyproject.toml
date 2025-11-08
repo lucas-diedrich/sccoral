@@ -7,7 +7,7 @@ name = "sccoral"
 version = "0.0.1"
 description = "Covariate informed scVI with linear decoder"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
     {name = "Lucas Diedrich"},

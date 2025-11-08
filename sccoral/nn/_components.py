@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Literal, Optional
+from typing import Literal
 
 import torch
 from scvi.nn import FCLayers
@@ -11,7 +11,8 @@ def _no_grad_absolute(tensor: Tensor) -> Tensor:
     """Return absolute value of tensor"""
     with torch.no_grad():
         return torch.absolute(tensor)
-    
+
+
 def _no_grad_zero(tensor: Tensor) -> Tensor:
     """Return absolute value of tensor"""
     with torch.no_grad():
@@ -91,7 +92,7 @@ class LinearDecoder(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        n_cat_list: Optional[Iterable[int]] = None,
+        n_cat_list: Iterable[int] | None = None,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,

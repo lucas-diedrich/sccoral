@@ -55,7 +55,7 @@ def test_pretraining_max_epochs(adata, max_pretraining_epochs, requires_grad):
         pretraining_max_epochs=max_pretraining_epochs,
         pretraining_early_stopping=False,
     )
-    assert all([param.requires_grad == requires_grad for name, param in model.module.z_encoder.named_parameters()])
+    assert all((param.requires_grad == requires_grad for _, param in model.module.z_encoder.named_parameters()))
 
 
 @pytest.mark.parametrize(["pretraining_early_stopping", "requires_grad"], [[True, True], [False, False]])
@@ -75,7 +75,7 @@ def test_pretraining_early_stopping(adata, pretraining_early_stopping, requires_
         pretraining_min_delta=np.inf,
         pretraining_early_stopping_patience=1,
     )
-    assert all([param.requires_grad == requires_grad for name, param in model.module.z_encoder.named_parameters()])
+    assert all((param.requires_grad == requires_grad for _, param in model.module.z_encoder.named_parameters()))
 
 
 @pytest.fixture(scope="module", params=["normal", "ln"])
@@ -105,9 +105,10 @@ def test_representation(basic_train):
 
 
 def test_representation_suffix(basic_train):
-    representation = basic_train.get_latent_representation(suffix='__factor')
+    representation = basic_train.get_latent_representation(suffix="__factor")
     assert "categorical_covariate__factor" in representation.columns
     assert "continuous_covariate__factor" in representation.columns
+
 
 def test_get_reconstruction_error(basic_train):
     # Setup new anndata

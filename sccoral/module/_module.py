@@ -194,7 +194,9 @@ class MODULE(BaseModuleClass):
         # Categorical embedding
         categorical_encoder_collection = {}
         if categorical_mapping is not None:
-            for (cat_name, n_levels), dim in zip(categorical_mapping.items(), range(n_latent, n_latent + n_cat)):
+            for (cat_name, n_levels), dim in zip(
+                categorical_mapping.items(), range(n_latent, n_latent + n_cat), strict=False
+            ):
                 # Binary covariates are encoded as 1-dimensional OHE
                 if n_levels == 2:
                     n_levels = 1
@@ -216,7 +218,7 @@ class MODULE(BaseModuleClass):
         # Continous embedding
         continous_encoder_collection = {}
         if continuous_names is not None:
-            for con_name, dim in zip(continuous_names, range(n_latent + n_cat, n_latent + n_cat + n_con)):
+            for con_name, dim in zip(continuous_names, range(n_latent + n_cat, n_latent + n_cat + n_con), strict=False):
                 name = f"encoder_{con_name}"
                 model = LinearEncoder(1, 1, latent_distribution=latent_distribution)
 
@@ -255,7 +257,7 @@ class MODULE(BaseModuleClass):
         if categorical_key in tensors.keys():
             categorical_covariates_ohe = {}
             categorical_covariates = torch.split(tensors[categorical_key], split_size_or_sections=1, dim=1)
-            for xi, (cat_name, n_level) in zip(categorical_covariates, self.categorical_mapping.items()):
+            for xi, (cat_name, n_level) in zip(categorical_covariates, self.categorical_mapping.items(), strict=False):
                 # TODO
                 if n_level == 2:
                     categorical_covariates_ohe[cat_name] = xi.to(dtype=torch.float32, device=self.device)
@@ -271,7 +273,7 @@ class MODULE(BaseModuleClass):
         if continous_key in tensors.keys():
             continuous_covariates = torch.split(tensors[continous_key], split_size_or_sections=1, dim=1)
             continuous_covs_split = {
-                k: v.to(device=self.device) for k, v in zip(self.continuous_names, continuous_covariates)
+                k: v.to(device=self.device) for k, v in zip(self.continuous_names, continuous_covariates, strict=False)
             }
 
         input_dict = {

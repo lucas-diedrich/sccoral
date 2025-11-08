@@ -6,7 +6,6 @@ from typing import Any, Literal
 import anndata as ad
 import numpy as np
 import pandas as pd
-import torch
 from scvi import REGISTRY_KEYS
 
 # Changes after scvi 1.0.4
@@ -127,7 +126,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         n_level_categorical = self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).get("n_cats_per_key")
 
         categorical_mapping = (
-            dict(zip(names_categorical, n_level_categorical)) if names_categorical is not None else None
+            dict(zip(names_categorical, n_level_categorical, strict=False)) if names_categorical is not None else None
         )
 
         # CONTINUOUS COVARIATES
@@ -235,7 +234,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         set_column_names
             Whether to set the column names to covariate names (defaults to True)
         suffix
-            Whether to add a suffix (e.g. `__factor`) so that columns in dataframe are better distinguishable 
+            Whether to add a suffix (e.g. `__factor`) so that columns in dataframe are better distinguishable
             from metadata info. Per default, no suffix is added.
 
         Returns

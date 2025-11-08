@@ -1,5 +1,5 @@
-from collections.abc import Iterable
-from typing import Callable, Literal, Optional
+from collections.abc import Callable, Iterable
+from typing import Literal
 
 import torch
 from scvi.train import TrainingPlan
@@ -25,7 +25,7 @@ class ScCoralTrainingPlan(TrainingPlan):
         self,
         module,
         optimizer: Tunable[Literal["Adam", "AdamW", "Custom"]] = "Adam",
-        optimizer_creator: Optional[TorchOptimizerCreator] = None,
+        optimizer_creator: TorchOptimizerCreator | None = None,
         lr: Tunable[float] = 1e-3,
         weight_decay: Tunable[float] = 1e-6,
         eps: float = 0.01,

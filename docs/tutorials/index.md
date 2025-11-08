@@ -1,11 +1,9 @@
-# Tutorials 
-
+# Tutorials
 
 ```{nbgallery}
 notebooks/tutorial-1.simulation.ipynb
 
 ```
-
 
 ```{toctree}
 :maxdepth: 3

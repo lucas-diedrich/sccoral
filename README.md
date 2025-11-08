@@ -40,8 +40,8 @@ pip install scCoral
 Create a suitable conda environment with Python 3.10 or newer:
 
 ```{bash}
-conda create -n scvi-env python=3.11
-conda activate scvi-env
+conda create -n sccoral python=3.12
+conda activate sccoral
 ```
 
 Install the latest development version:

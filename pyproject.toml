@@ -7,7 +7,7 @@ name = "sccoral"
 version = "0.0.1"
 description = "Covariate informed scVI with linear decoder"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
     {name = "Lucas Diedrich"},
@@ -19,7 +19,8 @@ urls.Documentation = "https://scCoral.readthedocs.io/"
 urls.Source = "https://github.com/lucas-diedrich/sccoral"
 urls.Home-page = "https://github.com/lucas-diedrich/sccoral"
 dependencies = [
-    "scvi-tools>=1.1",
+    "scvi-tools<1.2",
+    "jax<0.6.0",
     "torch",
     "pytorch-lightning",
     "scipy",

@@ -12,52 +12,53 @@ and this project adheres to [Semantic Versioning][].
 
 #### March 2024
 
--   Hyperparameter tuning
+- Hyperparameter tuning
 
--   Changed default latent distribution from `"normal"` to logit normal (`"ln"`)
+- Changed default latent distribution from `"normal"` to logit normal (`"ln"`)
 
 #### January 2024
 
--   `sccoral` in `sc-verse` cookiecutter template
--   Added `sccoral.data` for project-specific data
--   Added callbacks for pretraining procecure
+- `sccoral` in `sc-verse` cookiecutter template
+- Added `sccoral.data` for project-specific data
+- Added callbacks for pretraining procecure
 
 **Tests**
 
--   Added tests for model setup
--   Added tests based on implemented tests for callbacks
--   Added tests for misc. model features
+- Added tests for model setup
+- Added tests based on implemented tests for callbacks
+- Added tests for misc. model features
 
 **Model**
 
--   Added custom `TrainingPlan` with pre-training procedure for covariates
+- Added custom `TrainingPlan` with pre-training procedure for covariates
 
 **Documentation**
 
--   Add readthedocs website
+- Add readthedocs website
 
 #### December 2023
 
--   Model/Module/nn - Covariate informed VAE with linear decoder, model based on LSCVI
--   Added l1-regularization term to linear decoder
+- Model/Module/nn - Covariate informed VAE with linear decoder, model based on LSCVI
+- Added l1-regularization term to linear decoder
 
 ### [TODO]
 
-#### Project data 
--   Implement data projection
+#### Project data
+
+- Implement data projection
 
 #### Jupyter Notebooks
 
--   Jupyter Notebook - Demonstration on simulated data
--   Jupyter Notebook - Demonstration on IFN stimulation - Kang et al, 2018 data
+- Jupyter Notebook - Demonstration on simulated data
+- Jupyter Notebook - Demonstration on IFN stimulation - Kang et al, 2018 data
 
 #### tl
 
--   Find markers
+- Find markers
 
 #### Plotting (.pl)
 
--   Implement plotting module
+- Implement plotting module
 
 ### Refactoring
 

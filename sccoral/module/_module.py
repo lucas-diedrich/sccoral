@@ -60,9 +60,9 @@ class MODULE(BaseModuleClass):
     n_layers
         Number of layers on encoder site
     latent_distribution
-        Whether the latent distribution is normal (scVI) or lognormal (as suggested by LSCVI).
+        Whether the latent distribution is normal (scVI) or logistic normal (as suggested by LSCVI).
         As the original authors found that the log(data+1) latent distribution is less powerful,
-        we use `lognormal` per default.
+        we use `logistic normal` per default.
     dispersion
         Fit dispersion parameters on a per-gene, per-gene/individual batch, per-gene/individual cell
         basis
@@ -344,7 +344,7 @@ class MODULE(BaseModuleClass):
 
         if n_samples > 1:
             # Sample n samples from normal distribution
-            # if lognormal, transform z
+            # if logistic normal, apply sigmoid
             z_untransformed = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(z_untransformed)
 

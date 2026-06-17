@@ -29,7 +29,7 @@ class LinearEncoder(nn.Module):
     n_output
         Number of output dimensions
     latent_distribution
-        Normal distribution `normal` or lognormal `ln` (:cite:Svensson2020)
+        Normal distribution `normal` or logistic normal `ln` (:cite:Svensson2020)
     return_dist
         Whether to return the distribution or samples
     mean_bias

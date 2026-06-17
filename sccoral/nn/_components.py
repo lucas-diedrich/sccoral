@@ -13,12 +13,6 @@ def _no_grad_absolute(tensor: Tensor) -> Tensor:
         return torch.absolute(tensor)
 
 
-def _no_grad_zero(tensor: Tensor) -> Tensor:
-    """Return absolute value of tensor"""
-    with torch.no_grad():
-        return torch.zeros_like(tensor)
-
-
 class LinearEncoder(nn.Module):
     """LinearEncoder for covariates
 

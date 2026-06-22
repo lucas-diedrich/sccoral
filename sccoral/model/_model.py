@@ -78,7 +78,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
     >>> m.train()
     >>> representation = m.get_latent_representation()  # pd.DataFrame cells x n_latent
     >>> loadings = m.get_loadings()  # pd.DataFrame genes x n_latent
-    >>> r2 = m.get_explained_variance_per_factor()  # pd.DataFrame 1 x n_latent
+
 
     Notes
     -----
@@ -266,26 +266,6 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
                 column_names = [f"{col}{suffix}" for col in column_names]
 
             return pd.DataFrame(res, index=adata.obs_names, columns=column_names)
-
-    @inference_mode()
-    def get_explained_variance_per_factor(
-        self, adata: None | ad.AnnData, set_column_names: bool = False
-    ) -> pd.DataFrame:
-        """Compute explained variance per factor
-
-        Parameters
-        ----------
-        adata
-            AnnData object to embed. If `None` use stored `anndata.AnnData`
-        set_column_names
-            Whether to set the column names to covariate names
-
-        Returns
-        -------
-        Pandas DataFrame
-            `1` x `n_latent`
-        """
-        raise NotImplementedError
 
     @classmethod
     def setup_anndata(

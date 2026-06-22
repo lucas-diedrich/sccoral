@@ -316,7 +316,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
     def train(
         self,
-        max_epochs: int = 500,
+        max_epochs: int = 2000,
         pretraining: Tunable[bool] = True,
         use_gpu: bool = True,
         accelerator: None | Literal["cpu", "gpu", "auto"] = "auto",
@@ -328,8 +328,15 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         pretraining_max_epochs: Tunable[int] = 500,
         pretraining_early_stopping: Tunable[bool] = True,
         pretraining_early_stopping_metric: Tunable[
-            None | Literal["reconstruction_loss_train", "train_loss_epoch", "elbo_train"]
-        ] = "reconstruction_loss_train",
+            None
+            | Literal[
+                "reconstruction_loss_validation",
+                "elbo_validation",
+                "reconstruction_loss_train",
+                "train_loss_epoch",
+                "elbo_train",
+            ]
+        ] = "reconstruction_loss_validation",
         pretraining_min_delta: Tunable[float] = 0.0,
         pretraining_early_stopping_patience: Tunable[int] = 5,
         plan_kwargs: None | dict[str, Any] = None,
@@ -397,12 +404,32 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
         # IMPLEMENT PRETRAINING
         if pretraining:
+            # Validation metrics require a validation split. If none is requested,
+            # fall back to the equivalent training metric so early stopping still works.
+            if validation_size == 0 and pretraining_early_stopping_metric.endswith("_validation"):
+                fallback_metric = pretraining_early_stopping_metric.replace("_validation", "_train")
+                logger.warning(
+                    f"`validation_size=0` but `pretraining_early_stopping_metric` is "
+                    f"'{pretraining_early_stopping_metric}', which is unavailable without a "
+                    f"validation split. Falling back to '{fallback_metric}'."
+                )
+                pretraining_early_stopping_metric = fallback_metric
+
+            # Validation metrics are only available at validation epoch end, so
+            # check there; training metrics are checked at training epoch end.
+            check_on_train = not pretraining_early_stopping_metric.endswith("_validation")
+
+            # scvi's TrainRunner only enables validation when early_stopping/checkpointing
+            # are active. If we're monitoring a validation metric for pretraining, we must
+            # ensure validation runs every epoch — otherwise the metric is never logged.
+            if not check_on_train and "check_val_every_n_epoch" not in trainer_kwargs:
+                trainer_kwargs["check_val_every_n_epoch"] = 1
             check_pretraining_stop_callback = tcb.EarlyStoppingCheck(
                 monitor=pretraining_early_stopping_metric,
                 min_delta=pretraining_min_delta,
                 patience=pretraining_early_stopping_patience,
                 mode="min",
-                check_on_train=True,
+                check_on_train=check_on_train,
             )
             pretraing_freeze_callback = tcb.PretrainingFreezeWeights(
                 submodule="z_encoder",

@@ -42,7 +42,7 @@ class EarlyStoppingCheck(EarlyStopping):
         check_on_train: bool = True,
         **kwargs,
     ):
-        super().__init__(monitor, min_delta, patience, mode, **kwargs)
+        super().__init__(monitor=monitor, min_delta=min_delta, patience=patience, mode=mode, **kwargs)
 
         self.check_on_train = check_on_train
 

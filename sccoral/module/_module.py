@@ -96,7 +96,7 @@ class MODULE(BaseModuleClass):
         log_variational: bool = True,  # as LSCVI
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "none"]] = "none",
-        use_observed_lib_size: Tunable[bool] = True,  # TODO LSCVI overwrites this flag and uses False
+        use_observed_lib_size: Tunable[bool] = False,  # TODO LSCVI overwrites this flag and uses False
         library_log_means: None | np.ndarray = None,
         library_log_vars: None | np.ndarray = None,
         **vae_kwargs,

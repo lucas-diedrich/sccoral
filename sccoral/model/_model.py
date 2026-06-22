@@ -110,7 +110,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",
         use_batch_norm: Literal["encoder", "decoder", "both", "none"] = "both",
         use_layer_norm: bool = False,
-        use_observed_lib_size: bool = True,
+        use_observed_lib_size: bool = False,
         **vae_kwargs,
     ) -> None:
         super().__init__(adata)

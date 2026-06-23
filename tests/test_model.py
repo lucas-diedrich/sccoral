@@ -78,6 +78,31 @@ def test_pretraining_early_stopping(adata, pretraining_early_stopping, requires_
     assert all((param.requires_grad == requires_grad for _, param in model.module.z_encoder.named_parameters()))
 
 
+def test_train_singleton_final_batch():
+    """n_cells == k*batch_size + 1 must not crash BatchNorm (singleton last batch)."""
+    batch_size = 128
+    n_obs = 2 * batch_size + 1  # 257 -> last train batch would be a single cell
+
+    adata = synthetic_iid(batch_size=n_obs, n_genes=50, n_proteins=0, n_regions=0, n_batches=1, n_labels=2)
+    adata.obs["categorical_covariate"] = np.random.choice(["A", "B"], size=adata.n_obs, replace=True)
+    adata.obs["continuous_covariate"] = 1
+
+    SCCORAL.setup_anndata(
+        adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
+    )
+    model = SCCORAL(adata, n_latent=5)
+    # validation_size=0 keeps all cells in the train split so the remainder is exactly 1.
+    # early_stopping/pretraining are disabled to isolate the train-loader BatchNorm path.
+    model.train(
+        max_epochs=2,
+        accelerator="cpu",
+        validation_size=0,
+        batch_size=batch_size,
+        early_stopping=False,
+        pretraining=False,
+    )
+
+
 @pytest.fixture(scope="module", params=["normal", "ln"])
 def basic_train(adata, request):
     SCCORAL.setup_anndata(

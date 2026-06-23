@@ -16,14 +16,13 @@ except ImportError:
 
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalJointObsField, CategoricalObsField, LayerField, NumericalJointObsField
-from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import TrainRunner
 from torch import inference_mode
 
 from sccoral.module import MODULE
-from sccoral.train import ScCoralTrainingPlan
+from sccoral.train import ScCoralDataSplitter, ScCoralTrainingPlan
 from sccoral.train import _callbacks as tcb
 
 logger = logging.getLogger(__name__)
@@ -91,7 +90,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
     """
 
     _module_cls = MODULE
-    _data_splitter_cls = DataSplitter
+    _data_splitter_cls = ScCoralDataSplitter
     # scvi.train.TrainingPlan with additional class attributes for pretraining
     _training_plan_cls = ScCoralTrainingPlan
     _train_runner_cls = TrainRunner

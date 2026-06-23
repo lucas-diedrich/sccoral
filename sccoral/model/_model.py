@@ -373,6 +373,17 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
         # Data splitter (default)
         assert validation_size < 1 and validation_size >= 0, "validation_size must in interval [0-1)"
+
+        # Early stopping monitors a validation metric, which requires a validation split.
+        # With validation_size=0 there is no val dataloader, so scvi/Lightning would request
+        # one and crash on the `None` returned by `val_dataloader`. Disable it in that case.
+        if validation_size == 0 and trainer_kwargs["early_stopping"]:
+            logger.warning(
+                "`validation_size=0` leaves no validation split, but `early_stopping=True` "
+                "monitors a validation metric. Disabling early stopping for this run."
+            )
+            trainer_kwargs["early_stopping"] = False
+
         train_size = 1 - validation_size
         data_splitter = self._data_splitter_cls(
             self.adata_manager,

@@ -40,6 +40,16 @@ def test_train(adata):
     model.train(pretraining=False, max_epochs=10)
 
 
+def test_train_no_validation_split(adata):
+    """validation_size=0 must not crash even with the default early_stopping=True."""
+    SCCORAL.setup_anndata(
+        adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
+    )
+    model = SCCORAL(adata, n_latent=5)
+    # early_stopping defaults to True; with no validation split it should be auto-disabled
+    model.train(max_epochs=2, accelerator="cpu", validation_size=0)
+
+
 @pytest.mark.parametrize(["max_pretraining_epochs", "requires_grad"], [[10, True], [21, False]])
 def test_pretraining_max_epochs(adata, max_pretraining_epochs, requires_grad):
     SCCORAL.setup_anndata(

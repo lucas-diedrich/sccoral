@@ -120,7 +120,7 @@ class LinearDecoder(nn.Module):
             **kwargs,
         )
 
-    def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor):
+    def forward(self, z: torch.Tensor, library: torch.Tensor):
         raw_px_scale = self.factor_loading(z)
         px_scale = torch.softmax(raw_px_scale, dim=-1)
         px_dropout = self.px_dropout_decoder(z)

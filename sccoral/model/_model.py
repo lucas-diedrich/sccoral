@@ -49,7 +49,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         Dropout rate for neural networks (see LSCVI)
     dispersion
         Whether dispersion parameters of genes are fit on the level of
-        1) datasets 2) batches 3) cells (not implemented: labels)
+        1) datasets ("gene") 2) batches ("gene-batch")
     log_variational
         Whether to log(x+1) counts x during encoding
     latent_distribution
@@ -106,7 +106,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         n_hidden: Tunable[int] = 128,
         n_layers: Tunable[int] = 1,
         dropout_rate: Tunable[float] = 0.1,
-        dispersion: Literal["gene", "gene-batch", "gene-cell"] = "gene",  # TODO gene-label
+        dispersion: Literal["gene", "gene-batch"] = "gene",
         log_variational: bool = True,
         latent_distribution: Literal["normal", "ln"] = "ln",
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",

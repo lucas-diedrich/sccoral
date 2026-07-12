@@ -52,7 +52,6 @@ class MODULE(BaseModuleClass):
         Regularization parameter
     n_batch
         Number of batches
-    # n_labels NOT IMPLEMENTED
     n_hidden
         Number of nodes per hidden layer on encoder site
     n_latent
@@ -85,14 +84,13 @@ class MODULE(BaseModuleClass):
         continuous_names: None | Iterable,
         alpha_l1: Tunable[float] = 0,
         n_batch: int = 0,
-        # n_labels: int = 0,  # TODO gene-labels not implemented
         n_hidden: Tunable[int] = 128,
         n_latent: int = 10,
         n_layers: Tunable[int] = 1,
         dropout_rate: Tunable[float] = 0.1,
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",  # as LSCVI
         latent_distribution: Tunable[Literal["normal", "ln"]] = "ln",  # as LSCVI
-        dispersion: Tunable[Literal["gene", "gene-batch", "gene-cell"]] = "gene",  # TODO gene-labels not implemented
+        dispersion: Tunable[Literal["gene", "gene-batch"]] = "gene",
         log_variational: bool = True,  # as LSCVI
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "none"]] = "none",
@@ -117,7 +115,6 @@ class MODULE(BaseModuleClass):
         self.alpha_l1 = alpha_l1
 
         self.n_batch = n_batch
-        # self.n_labels = n_labels # TODO gene-labels not implemented
         self.latent = n_latent
         self.log_variational = log_variational
         self.gene_likelihood = gene_likelihood
@@ -140,15 +137,9 @@ class MODULE(BaseModuleClass):
             self.px_r = torch.nn.Parameter(torch.randn(n_input))
         elif self.dispersion == "gene-batch":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, n_batch))
-        # elif self.dispersion == "gene-label": # TODO gene-label not implemented
-        #     self.px_r = torch.nn.Parameter(torch.randn(n_input, n_labels))
-        elif self.dispersion == "gene-cell":
-            pass
         else:
             raise ValueError(
-                "dispersion must be one of ['gene', 'gene-batch',"
-                " 'gene-label', 'gene-cell'], but input was "
-                "{}.format(self.dispersion)"
+                "dispersion must be one of ['gene', 'gene-batch']," " but input was " "{}.format(self.dispersion)"
             )
 
         self.use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
@@ -397,14 +388,8 @@ class MODULE(BaseModuleClass):
 
         # TODO Double check, add batch_id as covariate
         # TODO library to size factor
-        px_scale, px_r, px_rate, px_dropout = self.decoder(dispersion="", z=decoder_input, library=library)
+        px_scale, px_r, px_rate, px_dropout = self.decoder(z=decoder_input, library=library)
 
-        # TODO gene-label not implemented
-        # gene-cell: do nothing
-        # if self.dispersion == 'gene-label':
-        #     px_r = F.linear(
-        #         one_hot(y, self.n_labels), self.px_r
-        #     )
         if self.dispersion == "gene-batch":
             px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":

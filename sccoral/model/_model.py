@@ -6,6 +6,7 @@ from typing import Any, Literal
 import anndata as ad
 import numpy as np
 import pandas as pd
+import scanpy as sc
 from scvi import REGISTRY_KEYS
 
 # Changes after scvi 1.0.4
@@ -22,6 +23,7 @@ from scvi.train import TrainRunner
 from torch import inference_mode
 
 from sccoral.module import MODULE
+from sccoral.tl._stats import _pcr
 from sccoral.train import ScCoralDataSplitter, ScCoralTrainingPlan
 from sccoral.train import _callbacks as tcb
 
@@ -77,6 +79,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
     >>> m.train()
     >>> representation = m.get_latent_representation()  # pd.DataFrame cells x n_latent
     >>> loadings = m.get_loadings()  # pd.DataFrame genes x n_latent
+    >>> ev = m.get_explained_variance_per_factor()  # pd.DataFrame 1 x n_latent
 
 
     Notes
@@ -265,6 +268,84 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
                 column_names = [f"{col}{suffix}" for col in column_names]
 
             return pd.DataFrame(res, index=adata.obs_names, columns=column_names)
+
+    @inference_mode()
+    def get_explained_variance_per_factor(
+        self, adata: ad.AnnData | None = None, set_column_names: bool = True, run_pca: bool = False
+    ) -> pd.DataFrame:
+        """Compute the explained variance per factor via principal component regression
+
+        Each latent factor is treated as a covariate and regressed against the principal
+        components of the data (see :func:`sccoral.tl.stats.principal_component_regression`).
+        For factor ``k`` the value is the fraction of the data's total (PCA) variance that
+        is linearly explained by that factor:
+
+            ``EV_k = sum_pc R2(factor_k -> PC_pc) * variance_ratio_pc / sum_pc variance_ratio_pc``
+
+        Factors are scored independently, so the values lie in `[0, 1]` but do **not**
+        sum to `1` (correlated factors can each explain overlapping variance).
+
+        Parameters
+        ----------
+        adata
+            AnnData object to embed. If `None` use stored `anndata.AnnData`. Must contain
+            a precomputed PCA in ``obsm['X_pca']`` / ``uns['pca']['variance_ratio']``
+            (unless `run_pca` is set).
+        set_column_names
+            Whether to set the column names to covariate names
+        run_pca
+            Whether to run PCA with default parameters if it is not found in `adata`
+            (otherwise raises `ValueError`).
+
+        Returns
+        -------
+        Pandas DataFrame
+            `1` x `n_latent + n_categorical + n_continuous`. Columns follow the same
+            layout as :meth:`get_loadings` / :meth:`get_latent_representation` (free
+            factors, then categorical, then continuous covariates). Values lie in `[0, 1]`.
+
+        Raises
+        ------
+        ValueError
+            If `X_pca` is not found in `adata.obsm` and `run_pca` is `False`.
+        """
+        if not self.is_trained_:
+            raise RuntimeError("Train model first")
+
+        if adata is None:
+            adata = self.adata
+
+        # PCA is required to decompose the data's variance (mirrors
+        # sccoral.tl.stats.principal_component_regression).
+        if "X_pca" not in adata.obsm:
+            if not run_pca:
+                raise ValueError("Run PCA first")
+            logger.warning("X_pca not found. Run PCA with default parameters")
+            sc.pp.pca(adata)
+
+        X_pca = adata.obsm["X_pca"].T
+        variance_ratio = adata.uns["pca"]["variance_ratio"]
+
+        # Latent representation (cells x factors); each factor is a covariate for PCR.
+        z = self.get_latent_representation(adata, set_column_names=False).to_numpy()
+        explained_variance = np.array([_pcr(z[:, [k]], X_pca, variance_ratio) for k in range(z.shape[1])])
+        # R2 is mathematically in [0, 1]; clip away floating-point noise (e.g. a constant
+        # covariate factor can yield a tiny negative value near 0).
+        explained_variance = np.clip(explained_variance, 0.0, 1.0)
+
+        column_names = None
+        if set_column_names:
+            categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
+            continuous_names = self.module.continuous_names if self.module.continuous_names is not None else []
+
+            column_names = [
+                # Free factors
+                *list(range(self.module.n_latent)),
+                *categorical_names,
+                *continuous_names,
+            ]
+
+        return pd.DataFrame(explained_variance[np.newaxis, :], index=["explained_variance"], columns=column_names)
 
     @classmethod
     def setup_anndata(

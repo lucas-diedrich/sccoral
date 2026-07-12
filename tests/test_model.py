@@ -145,6 +145,32 @@ def test_representation_suffix(basic_train):
     assert "continuous_covariate__factor" in representation.columns
 
 
+def test_explained_variance_per_factor(basic_train):
+    # PCR-based metric requires a precomputed PCA on the data
+    ev = basic_train.get_explained_variance_per_factor(run_pca=True)
+
+    # n_latent (5) + categorical (1) + continuous (1) factors
+    assert ev.shape == (1, 7)
+    assert "categorical_covariate" in ev.columns
+    assert "continuous_covariate" in ev.columns
+    # PCR explained variance per factor lies in [0, 1] (does not sum to 1)
+    values = ev.to_numpy().ravel()
+    assert ((values >= 0) & (values <= 1)).all()
+
+
+def test_explained_variance_per_factor_requires_pca(basic_train):
+    """Without a precomputed PCA (and run_pca=False) the method must raise."""
+    adata = synthetic_iid(batch_size=50, n_genes=100, n_proteins=0, n_regions=0, n_batches=1, n_labels=2)
+    adata.obs["categorical_covariate"] = np.random.choice(["A", "B"], size=adata.n_obs, replace=True)
+    adata.obs["continuous_covariate"] = 1
+    SCCORAL.setup_anndata(
+        adata, categorical_covariates="categorical_covariate", continuous_covariates="continuous_covariate"
+    )
+
+    with pytest.raises(ValueError, match="Run PCA first"):
+        basic_train.get_explained_variance_per_factor(adata)
+
+
 def test_get_reconstruction_error(basic_train):
     # Setup new anndata
     adata = synthetic_iid(batch_size=50, n_genes=100, n_proteins=0, n_regions=0, n_batches=1, n_labels=2)

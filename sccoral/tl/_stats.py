@@ -52,7 +52,7 @@ def principal_component_regression(
     explained_variance = adata.uns["pca"]["variance_ratio"]
 
     x = adata.obs[covariate].to_numpy().reshape(-1, 1)
-    if isinstance(adata.obs[covariate].dtype, pd.CategoricalDtype):
+    if transform_categorical and isinstance(adata.obs[covariate].dtype, pd.CategoricalDtype):
         x = OneHotEncoder(sparse_output=False, drop="if_binary").fit_transform(x)
 
     covariate_explained_variance = _pcr(x, X_pca, explained_variance)

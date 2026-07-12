@@ -46,6 +46,16 @@ def test_principal_component_regression_in_unit_interval(pca_adata):
     assert 0.0 <= ev <= 1.0
 
 
+def test_principal_component_regression_honors_transform_categorical(pca_adata):
+    """`transform_categorical=False` must skip the one-hot encoding of categoricals.
+
+    Without the OHE the covariate stays as strings, so the linear regression can no
+    longer be fit -- confirming the flag actually gates the transform.
+    """
+    with pytest.raises(ValueError):
+        principal_component_regression(pca_adata, "categorical_covariate", transform_categorical=False)
+
+
 def test_principal_component_regression_requires_pca():
     """Without a precomputed PCA (and run_pca=False) it must raise."""
     adata = synthetic_iid(batch_size=50, n_genes=50, n_proteins=0, n_regions=0, n_batches=1, n_labels=2)

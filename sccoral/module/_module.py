@@ -136,9 +136,7 @@ class MODULE(BaseModuleClass):
         elif self.dispersion == "gene-batch":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, n_batch))
         else:
-            raise ValueError(
-                "dispersion must be one of ['gene', 'gene-batch']," " but input was " "{}.format(self.dispersion)"
-            )
+            raise ValueError(f"dispersion must be one of ['gene', 'gene-batch'], but input was {self.dispersion}")
 
         self.use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         self.use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
@@ -487,9 +485,15 @@ class MODULE(BaseModuleClass):
 
                 log_prob_sum += p_l - q_l_x
 
+            # With a single sample per pass the inference outputs have no leading
+            # sample dimension, so log_prob_sum is (batch,). Add one back so that
+            # samples stack along dim 0 and the per-cell (batch) axis is preserved
+            # through the logsumexp below (otherwise cells and samples get pooled).
+            if log_prob_sum.dim() == 1:
+                log_prob_sum = log_prob_sum.unsqueeze(0)
             to_sum.append(log_prob_sum)
-        to_sum = torch.cat(to_sum, dim=0)
-        batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(n_mc_samples)
+        to_sum = torch.cat(to_sum, dim=0)  # (n_mc_samples, batch)
+        batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(n_mc_samples)  # (batch,)
         if return_mean:
             batch_log_lkl = torch.mean(batch_log_lkl).item()
         else:

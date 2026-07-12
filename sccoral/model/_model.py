@@ -379,8 +379,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         pretraining_max_epochs: Tunable[int] = 500,
         pretraining_early_stopping: Tunable[bool] = True,
         pretraining_early_stopping_metric: Tunable[
-            None
-            | Literal[
+            Literal[
                 "reconstruction_loss_validation",
                 "elbo_validation",
                 "reconstruction_loss_train",

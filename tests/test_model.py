@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import sccoral
+import torch
 from sccoral.model import SCCORAL
 from scvi.data import synthetic_iid
 
@@ -169,6 +170,17 @@ def test_explained_variance_per_factor_requires_pca(basic_train):
 
     with pytest.raises(ValueError, match="Run PCA first"):
         basic_train.get_explained_variance_per_factor(adata)
+
+
+def test_marginal_ll(basic_train):
+    """`get_marginal_ll` must return one finite value per cell (batch dim preserved)."""
+    per_cell = basic_train.get_marginal_ll(n_mc_samples=10, return_mean=False)
+    assert per_cell.shape == (400,)  # n_cells
+    assert torch.isfinite(per_cell).all()
+
+    mean_ll = basic_train.get_marginal_ll(n_mc_samples=10, return_mean=True)
+    assert isinstance(mean_ll, float)
+    assert np.isfinite(mean_ll)
 
 
 def test_get_reconstruction_error(basic_train):

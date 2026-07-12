@@ -434,7 +434,7 @@ class MODULE(BaseModuleClass):
             kl_divergence_l = kld(
                 inference_outputs["ql"],
                 generative_outputs["pl"],
-            ).sum(dim=1)
+            ).sum(dim=-1)
         else:
             kl_divergence_l = torch.tensor(0.0, device=x.device)
 

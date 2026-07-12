@@ -56,7 +56,6 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         Prior on latent space
     gene_likelihood
         One of (see scVI/LSCVI)
-
             * ``nb`` - Negative binomial distribution
             * ``zinb`` - Zero inflated negative binomial distribution
             * ``poisson`` - Poisson distribution
@@ -70,22 +69,16 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
     Examples
     --------
-    >>> adata = sccoral.data.simulation_dataset()
-    >>> sccoral.model.setup_anndata(adata,
-                                    categorical_covariate='categorical_covariate',
-                                    continuous_covariate='continuous_covariate'
-                                    )
-    >>> m = sccoral.model(adata, n_latent=7)
+    >>> adata = sccoral.data.synthetic_data()
+    >>> sccoral.SCCORAL.setup_anndata(adata,
+                                      categorical_covariates='categorical_covariate',
+                                      continuous_covariates='continuous_covariate'
+                                      )
+    >>> m = sccoral.SCCORAL(adata, n_latent=7)
     >>> m.train()
     >>> representation = m.get_latent_representation()  # pd.DataFrame cells x n_latent
     >>> loadings = m.get_loadings()  # pd.DataFrame genes x n_latent
     >>> ev = m.get_explained_variance_per_factor()  # pd.DataFrame 1 x n_latent
-
-
-    Notes
-    -----
-    Upcoming documentation
-    1. :doc:
 
     References
     ----------
@@ -134,8 +127,12 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         # CONTINUOUS COVARIATES
         continuous_names = self.adata_manager.get_state_registry(REGISTRY_KEYS.CONT_COVS_KEY).get("columns")
 
-        # TODO
-        (library_log_means, library_log_vars) = _init_library_size(self.adata_manager, n_batch)
+        # Library size priors are only needed when the library size is inferred
+        # (use_observed_lib_size=False); skip the computation otherwise.
+        if not use_observed_lib_size:
+            (library_log_means, library_log_vars) = _init_library_size(self.adata_manager, n_batch)
+        else:
+            library_log_means = library_log_vars = None
 
         # SETUP MODULE
         self.module = self._module_cls(
@@ -264,7 +261,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
                     *categorical_names,
                     *continuous_names,
                 ]
-            if suffix is not None:
+            if suffix is not None and column_names is not None:
                 column_names = [f"{col}{suffix}" for col in column_names]
 
             return pd.DataFrame(res, index=adata.obs_names, columns=column_names)
@@ -352,7 +349,6 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         cls,
         adata: ad.AnnData,
         batch_key: None | str = None,
-        # labels_key: None | str = None,
         categorical_covariates: None | str | Iterable[str] = None,
         continuous_covariates: None | str | Iterable[str] = None,
         layer: None | str = None,
@@ -365,7 +361,6 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            # LabelsField(REGISTRY_KEYS.LABELS_KEY),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariates),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariates),
@@ -378,13 +373,11 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         self,
         max_epochs: int = 2000,
         pretraining: Tunable[bool] = True,
-        use_gpu: bool = True,
         accelerator: None | Literal["cpu", "gpu", "auto"] = "auto",
         devices="auto",
         validation_size: None | float = 0.1,
         batch_size: int = 128,
         early_stopping: Tunable[bool] = True,
-        # TODO refactor into pretraining_kwargs
         pretraining_max_epochs: Tunable[int] = 500,
         pretraining_early_stopping: Tunable[bool] = True,
         pretraining_early_stopping_metric: Tunable[
@@ -402,7 +395,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         plan_kwargs: None | dict[str, Any] = None,
         trainer_kwargs: None | dict[str, Any] = None,
         **kwargs,
-    ) -> None:
+    ) -> Any:
         """Train sccoral model
 
         Training is split into pretraining (only training on covariates, frozen z_encoder weights)
@@ -413,8 +406,8 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         ----------
         max_epochs
             Maximum epochs during training
-        max_pretraining_epochs
-            Maximum epochs during pretraining. If `None`, same as max_epochs
+        pretraining
+            Whether to conduct pretraining
         accelerator
             cpu/gpu/auto: auto automatically detects available devices
         devices
@@ -425,12 +418,18 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
             Size of minibatches during training
         early_stopping
             Enable early stopping during training
-        pretraining
-            Whether to conduct pretraining
         pretraining_max_epochs
             Maximum number of epochs for pretraining to continue.
         pretraining_early_stopping
             Enable early stopping during pretraining
+        pretraining_early_stopping_metric
+            Metric monitored for pretraining early stopping. Metrics ending in
+            `_validation` require a validation split; without one they fall back to
+            the corresponding `_train` metric.
+        pretraining_min_delta
+            Minimum change in the monitored metric to qualify as an improvement.
+        pretraining_early_stopping_patience
+            Number of checks with no improvement before pretraining early stopping triggers.
         plan_kwargs
             Training keyword arguments passed to `sccoral.train.TrainingPlan`
         trainer_kwargs
@@ -453,7 +452,8 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         )
 
         # Data splitter (default)
-        assert validation_size < 1 and validation_size >= 0, "validation_size must in interval [0-1)"
+        if validation_size is None or not (0 <= validation_size < 1):
+            raise ValueError("validation_size must be a float in the interval [0, 1)")
 
         # Early stopping monitors a validation metric, which requires a validation split.
         # With validation_size=0 there is no val dataloader, so scvi/Lightning would request

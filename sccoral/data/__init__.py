@@ -1,3 +1,3 @@
-from .datasets import ifn_kang2018_cd4, splatter_simulation
+from .datasets import splatter_simulation, synthetic_data
 
-__all__ = ["splatter_simulation", "ifn_kang2018_cd4"]
+__all__ = ["splatter_simulation", "synthetic_data"]

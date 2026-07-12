@@ -46,8 +46,6 @@ class EarlyStoppingCheck(EarlyStopping):
 
         self.check_on_train = check_on_train
 
-        self.state = {}
-
     def _run_early_stopping_check(self, trainer: Trainer, pl_module: LightningModule):
         """Overwrite method that stops trainer"""
         pass

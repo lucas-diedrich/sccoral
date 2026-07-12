@@ -104,7 +104,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         latent_distribution: Literal["normal", "ln"] = "ln",
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",
         use_batch_norm: Literal["encoder", "decoder", "both", "none"] = "both",
-        use_layer_norm: bool = False,
+        use_layer_norm: Literal["encoder", "none"] = "none",
         use_observed_lib_size: bool = False,
         **vae_kwargs,
     ) -> None:
@@ -324,11 +324,9 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         variance_ratio = adata.uns["pca"]["variance_ratio"]
 
         # Latent representation (cells x factors); each factor is a covariate for PCR.
+        # `_pcr` already clips each value into [0, 1].
         z = self.get_latent_representation(adata, set_column_names=False).to_numpy()
         explained_variance = np.array([_pcr(z[:, [k]], X_pca, variance_ratio) for k in range(z.shape[1])])
-        # R2 is mathematically in [0, 1]; clip away floating-point noise (e.g. a constant
-        # covariate factor can yield a tiny negative value near 0).
-        explained_variance = np.clip(explained_variance, 0.0, 1.0)
 
         column_names = None
         if set_column_names:

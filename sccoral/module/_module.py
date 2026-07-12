@@ -21,7 +21,7 @@ from torch.distributions import kl_divergence as kld
 
 from sccoral.nn import LinearDecoder, LinearEncoder
 
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
@@ -63,12 +63,12 @@ class MODULE(BaseModuleClass):
         As the original authors found that the log(data+1) latent distribution is less powerful,
         we use `logistic normal` per default.
     dispersion
-        Fit dispersion parameters on a per-gene, per-gene/individual batch, per-gene/individual cell
-        basis
+        Fit dispersion parameters on a per-gene ("gene") or per-gene/individual batch
+        ("gene-batch") basis
     log_variational
         Logarithmized variance for increased stability
     use_batch_norm
-        Whether to use batch norm in encoder
+        Whether to use batch norm in the encoder and/or decoder
     use_layer_norm
         Whether to use layer norm in encoder.
     library_log_means, library_log_vars
@@ -94,7 +94,7 @@ class MODULE(BaseModuleClass):
         log_variational: bool = True,  # as LSCVI
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "none"]] = "none",
-        use_observed_lib_size: Tunable[bool] = False,  # TODO LSCVI overwrites this flag and uses False
+        use_observed_lib_size: Tunable[bool] = False,
         library_log_means: None | np.ndarray = None,
         library_log_vars: None | np.ndarray = None,
         **vae_kwargs,
@@ -115,14 +115,12 @@ class MODULE(BaseModuleClass):
         self.alpha_l1 = alpha_l1
 
         self.n_batch = n_batch
-        self.latent = n_latent
         self.log_variational = log_variational
         self.gene_likelihood = gene_likelihood
         self.latent_distribution = latent_distribution
 
         self.dispersion = dispersion
 
-        # self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_observed_lib_size
 
         if not self.use_observed_lib_size:
@@ -145,9 +143,6 @@ class MODULE(BaseModuleClass):
         self.use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         self.use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         self.use_layer_norm_encoder = use_layer_norm == "encoder"
-
-        self.use_batch_norm = use_batch_norm
-        use_layer_norm = use_layer_norm
 
         # SETUP Neural nets
         # Setup latent space as follows:
@@ -249,7 +244,6 @@ class MODULE(BaseModuleClass):
             categorical_covariates_ohe = {}
             categorical_covariates = torch.split(tensors[categorical_key], split_size_or_sections=1, dim=1)
             for xi, (cat_name, n_level) in zip(categorical_covariates, self.categorical_mapping.items(), strict=False):
-                # TODO
                 if n_level == 2:
                     categorical_covariates_ohe[cat_name] = xi.to(dtype=torch.float32, device=self.device)
                 else:
@@ -383,11 +377,7 @@ class MODULE(BaseModuleClass):
         # px_scale: normalized gene expression (relative to library size)
         # px_r: Inverse dispersion of negative binomial
         # px_rate = torch.exp(library)*scale Unnormalized gene expression
-        # px_dropout: For ZINB model, dropout rate/rate of zero inflation,
-        # not recommended
-
-        # TODO Double check, add batch_id as covariate
-        # TODO library to size factor
+        # px_dropout: For ZINB model, dropout rate/rate of zero inflation
         px_scale, px_r, px_rate, px_dropout = self.decoder(z=decoder_input, library=library)
 
         if self.dispersion == "gene-batch":
@@ -464,7 +454,7 @@ class MODULE(BaseModuleClass):
 
         to_sum = []
         if n_mc_samples_per_pass > n_mc_samples:
-            logger.warn(
+            logger.warning(
                 "Number of chunks is larger than the total number of samples, setting it to the number of samples"
             )
             n_mc_samples_per_pass = n_mc_samples
@@ -520,8 +510,5 @@ class MODULE(BaseModuleClass):
         else:
             loadings = self.decoder.factor_loading.fc_layers[0][0].weight
         loadings = loadings.detach().cpu().numpy()
-        # TODO double check
-        # if self.n_batch > 1:
-        # loadings = loadings[:, : -self.n_batch]
 
         return loadings

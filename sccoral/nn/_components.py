@@ -51,7 +51,8 @@ class LinearEncoder(nn.Module):
         # as the class with "high" factor activity.
         if init_positive:
             self.mean.weight.data = _no_grad_absolute(self.mean.weight.data)
-            self.mean.bias.data = torch.nn.init.zeros_(self.mean.bias.data)
+            if self.mean.bias is not None:
+                torch.nn.init.zeros_(self.mean.bias)
 
         self.var = nn.Linear(n_input, n_output, bias=var_bias)
 
@@ -60,8 +61,7 @@ class LinearEncoder(nn.Module):
         if latent_distribution == "ln":
             self.z_transformation = nn.Sigmoid()
         else:
-            # Identity function
-            self.z_transformation = lambda x: x
+            self.z_transformation = nn.Identity()
 
         self.return_dist = return_dist
 
@@ -100,7 +100,7 @@ class LinearDecoder(nn.Module):
             n_cat_list=n_cat_list,
             n_layers=1,
             use_activation=False,
-            use_batch_norm=use_batch_norm,  # None
+            use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
@@ -110,7 +110,7 @@ class LinearDecoder(nn.Module):
         self.px_dropout_decoder = FCLayers(
             n_in=n_input,
             n_out=n_output,
-            n_cat_list=n_cat_list,  # None
+            n_cat_list=n_cat_list,
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,

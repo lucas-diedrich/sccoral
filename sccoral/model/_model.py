@@ -1,6 +1,9 @@
 # Imports
+import json
 import logging
+import warnings
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any, Literal
 
 import anndata as ad
@@ -414,6 +417,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         pretraining_early_stopping_patience: Tunable[int] = 5,
         plan_kwargs: None | dict[str, Any] = None,
         trainer_kwargs: None | dict[str, Any] = None,
+        training_status_path: str | Path | None = None,
         **kwargs,
     ) -> Any:
         """Train sccoral model
@@ -453,9 +457,17 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         plan_kwargs
             Training keyword arguments passed to `sccoral.train.TrainingPlan`
         trainer_kwargs
-            Additional keyword arguments passed to `scvi.train.TrainRunner`
+            Additional keyword arguments passed to `scvi.train.TrainRunner` and
+            its trainer. Must not duplicate keys supplied through kwargs.
         kwargs
-            Not passed.
+            Additional trainer keyword arguments, such as early_stopping_patience
+            or gradient_clip_val. Unsupported arguments raise an error from the
+            underlying trainer rather than being silently ignored.
+        training_status_path
+            Optional JSON output path for the latest training attempt's status.
+            The same record is stored as training_status_ and saved with the model.
+            Epoch indices (including unfreeze_epoch) are zero-based. With pretraining
+            disabled, pretraining_completed is True and unfreeze_epoch is None.
 
         Returns
         -------
@@ -466,7 +478,15 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
         lr = plan_kwargs["lr"] if "lr" in plan_kwargs else 0.001
 
-        trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else {}
+        if trainer_kwargs is not None and not isinstance(trainer_kwargs, dict):
+            raise TypeError("trainer_kwargs must be a dictionary or None")
+        trainer_kwargs = dict(trainer_kwargs or {})
+        duplicate_keys = trainer_kwargs.keys() & kwargs.keys()
+        if duplicate_keys:
+            raise ValueError(
+                "Trainer arguments supplied both directly and in trainer_kwargs: " + ", ".join(sorted(duplicate_keys))
+            )
+        trainer_kwargs.update(kwargs)
         trainer_kwargs["early_stopping"] = (
             early_stopping if "early_stopping" not in trainer_kwargs.keys() else trainer_kwargs["early_stopping"]
         )
@@ -530,15 +550,46 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
                 train_batch_norm=False,
             )
 
-            if "callbacks" not in trainer_kwargs:
-                trainer_kwargs["callbacks"] = []
-
-            trainer_kwargs["callbacks"] += [check_pretraining_stop_callback, pretraing_freeze_callback]
+            trainer_kwargs["callbacks"] = list(trainer_kwargs.get("callbacks") or []) + [
+                check_pretraining_stop_callback,
+                pretraing_freeze_callback,
+            ]
 
         # PRETRAINING
         # TRAINING
         # PASSED TO pl.Trainer
         training_plan = self._training_plan_cls(module=self.module, **plan_kwargs)
+        training_plan.is_pretrained = not pretraining
+        # A previous attempt may have ended with the count encoder still frozen.
+        if not pretraining:
+            tcb.PretrainingFreezeWeights.make_trainable(self.module.z_encoder)
+
+        self.training_status_ = {
+            "pretraining_enabled": pretraining,
+            "pretraining_completed": not pretraining,
+            "unfreeze_epoch": None,
+            "pretraining_epochs_completed": 0,
+            "joint_epochs_completed": 0,
+            "epochs_completed": 0,
+            "termination_reason": "running",
+        }
+        training_plan.training_status = self.training_status_
+        callbacks = list(trainer_kwargs.get("callbacks") or [])
+        callbacks.append(tcb.TrainingStatus())
+        if trainer_kwargs["early_stopping"]:
+            # Replace scvi's automatic stopper so it cannot consume patience or
+            # retain a best score from the frozen-encoder phase.
+            callbacks.append(
+                tcb.JointTrainingEarlyStopping(
+                    monitor=trainer_kwargs.get("early_stopping_monitor", "elbo_validation"),
+                    min_delta=trainer_kwargs.get("early_stopping_min_delta", 0.0),
+                    patience=trainer_kwargs.get("early_stopping_patience", 45),
+                    mode=trainer_kwargs.get("early_stopping_mode", "min"),
+                )
+            )
+            trainer_kwargs["early_stopping"] = False
+            trainer_kwargs["check_val_every_n_epoch"] = 1
+        trainer_kwargs["callbacks"] = callbacks
 
         # Should be left as is
         runner = self._train_runner_cls(
@@ -551,4 +602,36 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
             **trainer_kwargs,
         )
 
-        return runner()
+        try:
+            result = runner()
+        except BaseException as exc:
+            self.training_status_["termination_reason"] = (
+                "interrupted" if isinstance(exc, KeyboardInterrupt) else "failed"
+            )
+            raise
+        else:
+            if self.training_status_["termination_reason"] == "running":
+                trainer = runner.trainer
+                if trainer.max_steps >= 0 and trainer.global_step >= trainer.max_steps:
+                    reason = "max_steps"
+                elif trainer.current_epoch >= trainer.max_epochs:
+                    reason = "max_epochs"
+                elif trainer.should_stop:
+                    reason = "stop_requested"
+                else:
+                    reason = "completed"
+                self.training_status_["termination_reason"] = reason
+            return result
+        finally:
+            logger.info("Training status: %s", self.training_status_)
+            if self.training_status_["joint_epochs_completed"] == 0:
+                warnings.warn(
+                    "Training ended without completing a joint-training epoch. "
+                    "Inspect model.training_status_ before using the fitted model.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            if training_status_path is not None:
+                status_path = Path(training_status_path)
+                status_path.parent.mkdir(parents=True, exist_ok=True)
+                status_path.write_text(json.dumps(self.training_status_, indent=2) + "\n")

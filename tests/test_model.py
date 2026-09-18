@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import sccoral
+from lightning.pytorch.callbacks import Callback, EarlyStopping
 from sccoral.model import SCCORAL
 from scvi.data import synthetic_iid
 
@@ -48,6 +49,61 @@ def test_train_no_validation_split(adata):
     model = SCCORAL(adata, n_latent=5)
     # early_stopping defaults to True; with no validation split it should be auto-disabled
     model.train(max_epochs=2, accelerator="cpu", validation_size=0)
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_trainer_arguments_reach_trainer_without_mutating_inputs(adata, nested):
+    SCCORAL.setup_anndata(adata, categorical_covariates="categorical_covariate")
+    model = SCCORAL(adata, n_latent=3)
+
+    class TrainingObserver(Callback):
+        finished = False
+
+        def on_train_end(self, trainer, pl_module):
+            self.finished = True
+
+    observer = TrainingObserver()
+    callbacks = [observer]
+    settings = {"early_stopping_patience": 10, "gradient_clip_val": 0.5, "callbacks": callbacks}
+    options = {"trainer_kwargs": settings} if nested else settings.copy()
+    model.train(max_epochs=1, accelerator="cpu", **options)
+
+    assert observer.finished
+    assert model.trainer.gradient_clip_val == 0.5
+    stopping = [
+        callback
+        for callback in model.trainer.callbacks
+        if isinstance(callback, EarlyStopping) and callback.monitor == "elbo_validation"
+    ]
+    assert len(stopping) == 1
+    assert stopping[0].patience == 10
+    assert settings == {"early_stopping_patience": 10, "gradient_clip_val": 0.5, "callbacks": [observer]}
+    assert callbacks == [observer]
+
+
+def test_unknown_trainer_argument_raises(adata):
+    SCCORAL.setup_anndata(adata)
+    model = SCCORAL(adata, n_latent=3)
+    with pytest.raises(TypeError, match="early_stopping_patienc"):
+        model.train(max_epochs=1, pretraining=False, accelerator="cpu", early_stopping_patienc=10)
+
+
+def test_duplicate_trainer_argument_raises(adata):
+    SCCORAL.setup_anndata(adata)
+    model = SCCORAL(adata, n_latent=3)
+    with pytest.raises(ValueError, match="both directly and in trainer_kwargs: early_stopping_patience"):
+        model.train(
+            max_epochs=1,
+            early_stopping_patience=10,
+            trainer_kwargs={"early_stopping_patience": 20},
+        )
+
+
+def test_invalid_trainer_kwargs_raises(adata):
+    SCCORAL.setup_anndata(adata)
+    model = SCCORAL(adata, n_latent=3)
+    with pytest.raises(TypeError, match="trainer_kwargs must be a dictionary"):
+        model.train(max_epochs=1, trainer_kwargs=[("early_stopping_patience", 10)])
 
 
 @pytest.mark.parametrize(["max_pretraining_epochs", "requires_grad"], [[10, True], [21, False]])

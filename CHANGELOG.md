@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning][].
 
 ### Fixed
 
+- Delay automatic overall early stopping until joint training begins and warn
+  when a run ends without completing a joint-training epoch.
+- Forward extra `train()` keyword arguments to the trainer, including
+  `early_stopping_patience`. Reject duplicate direct/nested trainer arguments
+  and preserve caller-owned trainer settings and callback lists.
 - Preserve free-factor softmax and independent covariate sigmoid transformations in
   posterior mean extraction and multi-sample inference. Existing covariate-informed
   logistic-normal embeddings should be re-extracted from saved models, and analyses
@@ -23,6 +28,9 @@ and this project adheres to [Semantic Versioning][].
 - Preserve cell identities when extracting a subset or reordered latent representation.
 
 ### Added
+
+- Record the latest training attempt in `model.training_status_`, retained by
+  model save/load. Optional `training_status_path` exports the same record as JSON.
 
 #### March 2024
 

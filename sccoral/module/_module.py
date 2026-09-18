@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Iterable
 from typing import Literal
 
@@ -15,14 +14,10 @@ except ImportError:
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, one_hot
-from torch import logsumexp
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kld
 
 from sccoral.nn import LinearDecoder, LinearEncoder
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class MODULE(BaseModuleClass):
@@ -267,6 +262,14 @@ class MODULE(BaseModuleClass):
         }
         return input_dict
 
+    def transform_latent(self, z_untransformed: torch.Tensor) -> torch.Tensor:
+        """Transform Gaussian samples using the same blocks as the encoders."""
+        if self.latent_distribution == "ln":
+            free = torch.softmax(z_untransformed[..., : self.n_latent], dim=-1)
+            covariates = torch.sigmoid(z_untransformed[..., self.n_latent :])
+            return torch.cat([free, covariates], dim=-1)
+        return z_untransformed
+
     def inference(self, x, batch_index, continuous_covariates, categorical_covariates, n_samples=1):
         x_ = x
 
@@ -326,10 +329,9 @@ class MODULE(BaseModuleClass):
         qz = Normal(loc=mean_z, scale=torch.sqrt(var_z))
 
         if n_samples > 1:
-            # Sample n samples from normal distribution
-            # if logistic normal, apply sigmoid
+            # Preserve the free-factor softmax and independent covariate sigmoids.
             z_untransformed = qz.sample((n_samples,))
-            z = self.z_encoder.z_transformation(z_untransformed)
+            z = self.transform_latent(z_untransformed)
 
             if self.use_observed_lib_size:
                 library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
@@ -443,62 +445,6 @@ class MODULE(BaseModuleClass):
         return LossOutput(
             loss=loss, reconstruction_loss=reconstruction_loss, kl_local=kl_local, extra_metrics={"l1_loss": l1_loss}
         )
-
-    @torch.inference_mode()
-    @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples, return_mean=False, n_mc_samples_per_pass=1):
-        """Implementation from scvi-tools"""
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-        to_sum = []
-        if n_mc_samples_per_pass > n_mc_samples:
-            logger.warning(
-                "Number of chunks is larger than the total number of samples, setting it to the number of samples"
-            )
-            n_mc_samples_per_pass = n_mc_samples
-        n_passes = int(np.ceil(n_mc_samples / n_mc_samples_per_pass))
-        for _ in range(n_passes):
-            # Distribution parameters and sampled variables
-            inference_outputs, _, losses = self.forward(tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass})
-            qz = inference_outputs["qz"]
-            ql = inference_outputs["ql"]
-            z = inference_outputs["z"]
-            library = inference_outputs["library"]
-
-            # Reconstruction Loss
-            reconst_loss = losses.dict_sum(losses.reconstruction_loss)
-
-            # Log-probabilities
-            p_z = Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale)).log_prob(z).sum(dim=-1)
-            p_x_zl = -reconst_loss
-            q_z_x = qz.log_prob(z).sum(dim=-1)
-            log_prob_sum = p_z + p_x_zl - q_z_x
-
-            if not self.use_observed_lib_size:
-                (
-                    local_library_log_means,
-                    local_library_log_vars,
-                ) = self._compute_local_library_params(batch_index)
-
-                p_l = Normal(local_library_log_means, local_library_log_vars.sqrt()).log_prob(library).sum(dim=-1)
-                q_l_x = ql.log_prob(library).sum(dim=-1)
-
-                log_prob_sum += p_l - q_l_x
-
-            # With a single sample per pass the inference outputs have no leading
-            # sample dimension, so log_prob_sum is (batch,). Add one back so that
-            # samples stack along dim 0 and the per-cell (batch) axis is preserved
-            # through the logsumexp below (otherwise cells and samples get pooled).
-            if log_prob_sum.dim() == 1:
-                log_prob_sum = log_prob_sum.unsqueeze(0)
-            to_sum.append(log_prob_sum)
-        to_sum = torch.cat(to_sum, dim=0)  # (n_mc_samples, batch)
-        batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(n_mc_samples)  # (batch,)
-        if return_mean:
-            batch_log_lkl = torch.mean(batch_log_lkl).item()
-        else:
-            batch_log_lkl = batch_log_lkl.cpu()
-        return batch_log_lkl
 
     @torch.inference_mode()
     def get_loadings(self) -> np.ndarray:

@@ -2,6 +2,11 @@
 
 ## Model
 
+Marginal-likelihood estimation is not supported. The inherited
+`get_marginal_ll()` method raises `NotImplementedError`. Use `get_elbo()` or
+`get_reconstruction_error()` for their respective evaluation metrics; neither
+is a marginal-likelihood estimate.
+
 ```{eval-rst}
 .. module:: sccoral.model
 .. currentmodule:: sccoral

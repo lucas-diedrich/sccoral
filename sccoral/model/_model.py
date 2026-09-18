@@ -7,6 +7,7 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 import scanpy as sc
+import torch
 from scvi import REGISTRY_KEYS
 
 # Changes after scvi 1.0.4
@@ -221,15 +222,16 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         indices
             Indices of cells to retrieve (see scvi-tools)
         give_mean
-            Whether to give the full distribution or mean of distribution. Defaults to mean
-            See scvi-tools
+            Return the posterior mean if True, or one posterior sample if False.
+            For logistic-normal latents, only free factors are softmax-normalized;
+            covariate factors are independently sigmoid-transformed.
         mc_samples
             For distributions with no closed analytical solution - how many samples to draw (see scvi-tools)
         batch_size
             Batch size during inference.
         return_dist
-            Whether to return single-measurement values (False) or parameters of the distribution (True)
-            See scvi-tools
+            Return the mean and variance of the underlying, untransformed Gaussian
+            distributions instead of latent activities. Overrides give_mean.
         set_column_names
             Whether to set the column names to covariate names (defaults to True)
         suffix
@@ -241,15 +243,35 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         Pandas DataFrame
             `n_cells` x `n_latent`
         """
-        res = super().get_latent_representation(adata, indices, give_mean, mc_samples, batch_size, return_dist)
+        self._check_if_trained(warn=False)
+        adata = self._validate_anndata(adata)
+        if indices is not None:
+            indices = np.asarray(list(indices))
+        if give_mean and not return_dist and self.module.latent_distribution == "ln" and mc_samples < 1:
+            raise ValueError("mc_samples must be at least 1")
 
-        if adata is None:
-            adata = self.adata
+        latent, means, variances = [], [], []
+        for tensors in self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size):
+            outputs = self.module.inference(**self.module._get_inference_input(tensors))
+            qz = outputs["qz"]
+            if return_dist:
+                means.append(qz.loc.cpu())
+                variances.append(qz.variance.cpu())
+            else:
+                if give_mean:
+                    if self.module.latent_distribution == "ln":
+                        z = self.module.transform_latent(qz.sample((mc_samples,))).mean(dim=0)
+                    else:
+                        z = qz.loc
+                else:
+                    z = outputs["z"]
+                latent.append(z.cpu())
 
         if return_dist:
-            return res
+            return torch.cat(means).numpy(), torch.cat(variances).numpy()
 
         else:
+            res = torch.cat(latent).numpy()
             column_names = None
             if set_column_names:
                 categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
@@ -264,7 +286,8 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
             if suffix is not None and column_names is not None:
                 column_names = [f"{col}{suffix}" for col in column_names]
 
-            return pd.DataFrame(res, index=adata.obs_names, columns=column_names)
+            cell_names = adata.obs_names if indices is None else adata.obs_names[indices]
+            return pd.DataFrame(res, index=cell_names, columns=column_names)
 
     @inference_mode()
     def get_explained_variance_per_factor(

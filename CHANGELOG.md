@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+### Removed
+
+- Removed the incorrect marginal-likelihood estimator. The inherited
+  `get_marginal_ll()` entry point now raises `NotImplementedError`.
+  Training, ELBO evaluation, and reconstruction-error evaluation remain available.
+
+### Fixed
+
+- Preserve free-factor softmax and independent covariate sigmoid transformations in
+  posterior mean extraction and multi-sample inference. Existing covariate-informed
+  logistic-normal embeddings should be re-extracted from saved models, and analyses
+  using those embeddings recomputed. Model weights and ordinary training are unchanged.
+- Preserve cell identities when extracting a subset or reordered latent representation.
+
 ### Added
 
 #### March 2024

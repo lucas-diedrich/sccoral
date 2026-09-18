@@ -28,3 +28,4 @@ __pycache__/
 /.vscode/
 
 node_modules/**
+output

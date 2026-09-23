@@ -26,6 +26,7 @@ dependencies = [
     "scipy",
     "scikit-learn",
     "scanpy",
+    "kneed>=0.8.5",
     # for debug logging (referenced from the issue template)
     "session-info",
 ]

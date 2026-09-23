@@ -7,7 +7,7 @@ import scanpy as sc
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import OneHotEncoder
 
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
@@ -52,7 +52,7 @@ def principal_component_regression(
     explained_variance = adata.uns["pca"]["variance_ratio"]
 
     x = adata.obs[covariate].to_numpy().reshape(-1, 1)
-    if isinstance(adata.obs[covariate].dtype, pd.CategoricalDtype):
+    if transform_categorical and isinstance(adata.obs[covariate].dtype, pd.CategoricalDtype):
         x = OneHotEncoder(sparse_output=False, drop="if_binary").fit_transform(x)
 
     covariate_explained_variance = _pcr(x, X_pca, explained_variance)
@@ -60,7 +60,6 @@ def principal_component_regression(
     return covariate_explained_variance
 
 
-# TODO Write test
 def _pcr(x, X_pca, explained_variance) -> float:
     """Run PCR"""
     scores = []
@@ -70,4 +69,7 @@ def _pcr(x, X_pca, explained_variance) -> float:
     covariate_explained_variance = np.sum(np.array(scores) * explained_variance)
     total_explained_variance = np.sum(explained_variance)
 
-    return covariate_explained_variance / total_explained_variance
+    # The per-PC R2 of an in-sample OLS fit is mathematically in [0, 1], so the
+    # variance-ratio-weighted average is too. Clip away floating-point noise (e.g. a
+    # near-constant covariate can yield a tiny negative value near 0).
+    return float(np.clip(covariate_explained_variance / total_explained_variance, 0.0, 1.0))

@@ -1,11 +1,16 @@
 # Imports
+import json
 import logging
+import warnings
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any, Literal
 
 import anndata as ad
 import numpy as np
 import pandas as pd
+import scanpy as sc
+import torch
 from scvi import REGISTRY_KEYS
 
 # Changes after scvi 1.0.4
@@ -16,14 +21,14 @@ except ImportError:
 
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalJointObsField, CategoricalObsField, LayerField, NumericalJointObsField
-from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import TrainRunner
 from torch import inference_mode
 
 from sccoral.module import MODULE
-from sccoral.train import ScCoralTrainingPlan
+from sccoral.tl._stats import _pcr
+from sccoral.train import ScCoralDataSplitter, ScCoralTrainingPlan
 from sccoral.train import _callbacks as tcb
 
 logger = logging.getLogger(__name__)
@@ -48,14 +53,13 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         Dropout rate for neural networks (see LSCVI)
     dispersion
         Whether dispersion parameters of genes are fit on the level of
-        1) datasets 2) batches 3) cells (not implemented: labels)
+        1) datasets ("gene") 2) batches ("gene-batch")
     log_variational
         Whether to log(x+1) counts x during encoding
     latent_distribution
         Prior on latent space
     gene_likelihood
         One of (see scVI/LSCVI)
-
             * ``nb`` - Negative binomial distribution
             * ``zinb`` - Zero inflated negative binomial distribution
             * ``poisson`` - Poisson distribution
@@ -69,21 +73,16 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
     Examples
     --------
-    >>> adata = sccoral.data.simulation_dataset()
-    >>> sccoral.model.setup_anndata(adata,
-                                    categorical_covariate='categorical_covariate',
-                                    continuous_covariate='continuous_covariate'
-                                    )
-    >>> m = sccoral.model(adata, n_latent=7)
+    >>> adata = sccoral.data.synthetic_data()
+    >>> sccoral.SCCORAL.setup_anndata(adata,
+                                      categorical_covariates='categorical_covariate',
+                                      continuous_covariates='continuous_covariate'
+                                      )
+    >>> m = sccoral.SCCORAL(adata, n_latent=7)
     >>> m.train()
     >>> representation = m.get_latent_representation()  # pd.DataFrame cells x n_latent
     >>> loadings = m.get_loadings()  # pd.DataFrame genes x n_latent
-    >>> r2 = m.get_explained_variance_per_factor()  # pd.DataFrame 1 x n_latent
-
-    Notes
-    -----
-    Upcoming documentation
-    1. :doc:
+    >>> ev = m.get_explained_variance_per_factor()  # pd.DataFrame 1 x n_latent
 
     References
     ----------
@@ -91,7 +90,7 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
     """
 
     _module_cls = MODULE
-    _data_splitter_cls = DataSplitter
+    _data_splitter_cls = ScCoralDataSplitter
     # scvi.train.TrainingPlan with additional class attributes for pretraining
     _training_plan_cls = ScCoralTrainingPlan
     _train_runner_cls = TrainRunner
@@ -104,13 +103,13 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         n_hidden: Tunable[int] = 128,
         n_layers: Tunable[int] = 1,
         dropout_rate: Tunable[float] = 0.1,
-        dispersion: Literal["gene", "gene-batch", "gene-cell"] = "gene",  # TODO gene-label
+        dispersion: Literal["gene", "gene-batch"] = "gene",
         log_variational: bool = True,
         latent_distribution: Literal["normal", "ln"] = "ln",
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",
         use_batch_norm: Literal["encoder", "decoder", "both", "none"] = "both",
-        use_layer_norm: bool = False,
-        use_observed_lib_size: bool = True,
+        use_layer_norm: Literal["encoder", "none"] = "none",
+        use_observed_lib_size: bool = False,
         **vae_kwargs,
     ) -> None:
         super().__init__(adata)
@@ -132,8 +131,12 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         # CONTINUOUS COVARIATES
         continuous_names = self.adata_manager.get_state_registry(REGISTRY_KEYS.CONT_COVS_KEY).get("columns")
 
-        # TODO
-        (library_log_means, library_log_vars) = _init_library_size(self.adata_manager, n_batch)
+        # Library size priors are only needed when the library size is inferred
+        # (use_observed_lib_size=False); skip the computation otherwise.
+        if not use_observed_lib_size:
+            (library_log_means, library_log_vars) = _init_library_size(self.adata_manager, n_batch)
+        else:
+            library_log_means = library_log_vars = None
 
         # SETUP MODULE
         self.module = self._module_cls(
@@ -222,15 +225,16 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         indices
             Indices of cells to retrieve (see scvi-tools)
         give_mean
-            Whether to give the full distribution or mean of distribution. Defaults to mean
-            See scvi-tools
+            Return the posterior mean if True, or one posterior sample if False.
+            For logistic-normal latents, only free factors are softmax-normalized;
+            covariate factors are independently sigmoid-transformed.
         mc_samples
             For distributions with no closed analytical solution - how many samples to draw (see scvi-tools)
         batch_size
             Batch size during inference.
         return_dist
-            Whether to return single-measurement values (False) or parameters of the distribution (True)
-            See scvi-tools
+            Return the mean and variance of the underlying, untransformed Gaussian
+            distributions instead of latent activities. Overrides give_mean.
         set_column_names
             Whether to set the column names to covariate names (defaults to True)
         suffix
@@ -242,15 +246,35 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         Pandas DataFrame
             `n_cells` x `n_latent`
         """
-        res = super().get_latent_representation(adata, indices, give_mean, mc_samples, batch_size, return_dist)
+        self._check_if_trained(warn=False)
+        adata = self._validate_anndata(adata)
+        if indices is not None:
+            indices = np.asarray(list(indices))
+        if give_mean and not return_dist and self.module.latent_distribution == "ln" and mc_samples < 1:
+            raise ValueError("mc_samples must be at least 1")
 
-        if adata is None:
-            adata = self.adata
+        latent, means, variances = [], [], []
+        for tensors in self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size):
+            outputs = self.module.inference(**self.module._get_inference_input(tensors))
+            qz = outputs["qz"]
+            if return_dist:
+                means.append(qz.loc.cpu())
+                variances.append(qz.variance.cpu())
+            else:
+                if give_mean:
+                    if self.module.latent_distribution == "ln":
+                        z = self.module.transform_latent(qz.sample((mc_samples,))).mean(dim=0)
+                    else:
+                        z = qz.loc
+                else:
+                    z = outputs["z"]
+                latent.append(z.cpu())
 
         if return_dist:
-            return res
+            return torch.cat(means).numpy(), torch.cat(variances).numpy()
 
         else:
+            res = torch.cat(latent).numpy()
             column_names = None
             if set_column_names:
                 categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
@@ -262,37 +286,93 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
                     *categorical_names,
                     *continuous_names,
                 ]
-            if suffix is not None:
+            if suffix is not None and column_names is not None:
                 column_names = [f"{col}{suffix}" for col in column_names]
 
-            return pd.DataFrame(res, index=adata.obs_names, columns=column_names)
+            cell_names = adata.obs_names if indices is None else adata.obs_names[indices]
+            return pd.DataFrame(res, index=cell_names, columns=column_names)
 
     @inference_mode()
     def get_explained_variance_per_factor(
-        self, adata: None | ad.AnnData, set_column_names: bool = False
+        self, adata: ad.AnnData | None = None, set_column_names: bool = True, run_pca: bool = False
     ) -> pd.DataFrame:
-        """Compute explained variance per factor
+        """Compute the explained variance per factor via principal component regression
+
+        Each latent factor is treated as a covariate and regressed against the principal
+        components of the data (see :func:`sccoral.tl.stats.principal_component_regression`).
+        For factor ``k`` the value is the fraction of the data's total (PCA) variance that
+        is linearly explained by that factor:
+
+            ``EV_k = sum_pc R2(factor_k -> PC_pc) * variance_ratio_pc / sum_pc variance_ratio_pc``
+
+        Factors are scored independently, so the values lie in `[0, 1]` but do **not**
+        sum to `1` (correlated factors can each explain overlapping variance).
 
         Parameters
         ----------
         adata
-            AnnData object to embed. If `None` use stored `anndata.AnnData`
+            AnnData object to embed. If `None` use stored `anndata.AnnData`. Must contain
+            a precomputed PCA in ``obsm['X_pca']`` / ``uns['pca']['variance_ratio']``
+            (unless `run_pca` is set).
         set_column_names
             Whether to set the column names to covariate names
+        run_pca
+            Whether to run PCA with default parameters if it is not found in `adata`
+            (otherwise raises `ValueError`).
 
         Returns
         -------
         Pandas DataFrame
-            `1` x `n_latent`
+            `1` x `n_latent + n_categorical + n_continuous`. Columns follow the same
+            layout as :meth:`get_loadings` / :meth:`get_latent_representation` (free
+            factors, then categorical, then continuous covariates). Values lie in `[0, 1]`.
+
+        Raises
+        ------
+        ValueError
+            If `X_pca` is not found in `adata.obsm` and `run_pca` is `False`.
         """
-        raise NotImplementedError
+        if not self.is_trained_:
+            raise RuntimeError("Train model first")
+
+        if adata is None:
+            adata = self.adata
+
+        # PCA is required to decompose the data's variance (mirrors
+        # sccoral.tl.stats.principal_component_regression).
+        if "X_pca" not in adata.obsm:
+            if not run_pca:
+                raise ValueError("Run PCA first")
+            logger.warning("X_pca not found. Run PCA with default parameters")
+            sc.pp.pca(adata)
+
+        X_pca = adata.obsm["X_pca"].T
+        variance_ratio = adata.uns["pca"]["variance_ratio"]
+
+        # Latent representation (cells x factors); each factor is a covariate for PCR.
+        # `_pcr` already clips each value into [0, 1].
+        z = self.get_latent_representation(adata, set_column_names=False).to_numpy()
+        explained_variance = np.array([_pcr(z[:, [k]], X_pca, variance_ratio) for k in range(z.shape[1])])
+
+        column_names = None
+        if set_column_names:
+            categorical_names = self.module.categorical_names if self.module.categorical_names is not None else []
+            continuous_names = self.module.continuous_names if self.module.continuous_names is not None else []
+
+            column_names = [
+                # Free factors
+                *list(range(self.module.n_latent)),
+                *categorical_names,
+                *continuous_names,
+            ]
+
+        return pd.DataFrame(explained_variance[np.newaxis, :], index=["explained_variance"], columns=column_names)
 
     @classmethod
     def setup_anndata(
         cls,
         adata: ad.AnnData,
         batch_key: None | str = None,
-        # labels_key: None | str = None,
         categorical_covariates: None | str | Iterable[str] = None,
         continuous_covariates: None | str | Iterable[str] = None,
         layer: None | str = None,
@@ -305,7 +385,6 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            # LabelsField(REGISTRY_KEYS.LABELS_KEY),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariates),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariates),
@@ -316,26 +395,31 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
     def train(
         self,
-        max_epochs: int = 500,
+        max_epochs: int = 2000,
         pretraining: Tunable[bool] = True,
-        use_gpu: bool = True,
         accelerator: None | Literal["cpu", "gpu", "auto"] = "auto",
         devices="auto",
         validation_size: None | float = 0.1,
         batch_size: int = 128,
         early_stopping: Tunable[bool] = True,
-        # TODO refactor into pretraining_kwargs
         pretraining_max_epochs: Tunable[int] = 500,
         pretraining_early_stopping: Tunable[bool] = True,
         pretraining_early_stopping_metric: Tunable[
-            None | Literal["reconstruction_loss_train", "train_loss_epoch", "elbo_train"]
-        ] = "reconstruction_loss_train",
+            Literal[
+                "reconstruction_loss_validation",
+                "elbo_validation",
+                "reconstruction_loss_train",
+                "train_loss_epoch",
+                "elbo_train",
+            ]
+        ] = "reconstruction_loss_validation",
         pretraining_min_delta: Tunable[float] = 0.0,
         pretraining_early_stopping_patience: Tunable[int] = 5,
         plan_kwargs: None | dict[str, Any] = None,
         trainer_kwargs: None | dict[str, Any] = None,
+        training_status_path: str | Path | None = None,
         **kwargs,
-    ) -> None:
+    ) -> Any:
         """Train sccoral model
 
         Training is split into pretraining (only training on covariates, frozen z_encoder weights)
@@ -346,8 +430,8 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
         ----------
         max_epochs
             Maximum epochs during training
-        max_pretraining_epochs
-            Maximum epochs during pretraining. If `None`, same as max_epochs
+        pretraining
+            Whether to conduct pretraining
         accelerator
             cpu/gpu/auto: auto automatically detects available devices
         devices
@@ -358,18 +442,32 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
             Size of minibatches during training
         early_stopping
             Enable early stopping during training
-        pretraining
-            Whether to conduct pretraining
         pretraining_max_epochs
             Maximum number of epochs for pretraining to continue.
         pretraining_early_stopping
             Enable early stopping during pretraining
+        pretraining_early_stopping_metric
+            Metric monitored for pretraining early stopping. Metrics ending in
+            `_validation` require a validation split; without one they fall back to
+            the corresponding `_train` metric.
+        pretraining_min_delta
+            Minimum change in the monitored metric to qualify as an improvement.
+        pretraining_early_stopping_patience
+            Number of checks with no improvement before pretraining early stopping triggers.
         plan_kwargs
             Training keyword arguments passed to `sccoral.train.TrainingPlan`
         trainer_kwargs
-            Additional keyword arguments passed to `scvi.train.TrainRunner`
+            Additional keyword arguments passed to `scvi.train.TrainRunner` and
+            its trainer. Must not duplicate keys supplied through kwargs.
         kwargs
-            Not passed.
+            Additional trainer keyword arguments, such as early_stopping_patience
+            or gradient_clip_val. Unsupported arguments raise an error from the
+            underlying trainer rather than being silently ignored.
+        training_status_path
+            Optional JSON output path for the latest training attempt's status.
+            The same record is stored as training_status_ and saved with the model.
+            Epoch indices (including unfreeze_epoch) are zero-based. With pretraining
+            disabled, pretraining_completed is True and unfreeze_epoch is None.
 
         Returns
         -------
@@ -380,13 +478,33 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
         lr = plan_kwargs["lr"] if "lr" in plan_kwargs else 0.001
 
-        trainer_kwargs = trainer_kwargs if isinstance(trainer_kwargs, dict) else {}
+        if trainer_kwargs is not None and not isinstance(trainer_kwargs, dict):
+            raise TypeError("trainer_kwargs must be a dictionary or None")
+        trainer_kwargs = dict(trainer_kwargs or {})
+        duplicate_keys = trainer_kwargs.keys() & kwargs.keys()
+        if duplicate_keys:
+            raise ValueError(
+                "Trainer arguments supplied both directly and in trainer_kwargs: " + ", ".join(sorted(duplicate_keys))
+            )
+        trainer_kwargs.update(kwargs)
         trainer_kwargs["early_stopping"] = (
             early_stopping if "early_stopping" not in trainer_kwargs.keys() else trainer_kwargs["early_stopping"]
         )
 
         # Data splitter (default)
-        assert validation_size < 1 and validation_size >= 0, "validation_size must in interval [0-1)"
+        if validation_size is None or not (0 <= validation_size < 1):
+            raise ValueError("validation_size must be a float in the interval [0, 1)")
+
+        # Early stopping monitors a validation metric, which requires a validation split.
+        # With validation_size=0 there is no val dataloader, so scvi/Lightning would request
+        # one and crash on the `None` returned by `val_dataloader`. Disable it in that case.
+        if validation_size == 0 and trainer_kwargs["early_stopping"]:
+            logger.warning(
+                "`validation_size=0` leaves no validation split, but `early_stopping=True` "
+                "monitors a validation metric. Disabling early stopping for this run."
+            )
+            trainer_kwargs["early_stopping"] = False
+
         train_size = 1 - validation_size
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
@@ -397,12 +515,32 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
 
         # IMPLEMENT PRETRAINING
         if pretraining:
+            # Validation metrics require a validation split. If none is requested,
+            # fall back to the equivalent training metric so early stopping still works.
+            if validation_size == 0 and pretraining_early_stopping_metric.endswith("_validation"):
+                fallback_metric = pretraining_early_stopping_metric.replace("_validation", "_train")
+                logger.warning(
+                    f"`validation_size=0` but `pretraining_early_stopping_metric` is "
+                    f"'{pretraining_early_stopping_metric}', which is unavailable without a "
+                    f"validation split. Falling back to '{fallback_metric}'."
+                )
+                pretraining_early_stopping_metric = fallback_metric
+
+            # Validation metrics are only available at validation epoch end, so
+            # check there; training metrics are checked at training epoch end.
+            check_on_train = not pretraining_early_stopping_metric.endswith("_validation")
+
+            # scvi's TrainRunner only enables validation when early_stopping/checkpointing
+            # are active. If we're monitoring a validation metric for pretraining, we must
+            # ensure validation runs every epoch — otherwise the metric is never logged.
+            if not check_on_train and "check_val_every_n_epoch" not in trainer_kwargs:
+                trainer_kwargs["check_val_every_n_epoch"] = 1
             check_pretraining_stop_callback = tcb.EarlyStoppingCheck(
                 monitor=pretraining_early_stopping_metric,
                 min_delta=pretraining_min_delta,
                 patience=pretraining_early_stopping_patience,
                 mode="min",
-                check_on_train=True,
+                check_on_train=check_on_train,
             )
             pretraing_freeze_callback = tcb.PretrainingFreezeWeights(
                 submodule="z_encoder",
@@ -412,15 +550,46 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
                 train_batch_norm=False,
             )
 
-            if "callbacks" not in trainer_kwargs:
-                trainer_kwargs["callbacks"] = []
-
-            trainer_kwargs["callbacks"] += [check_pretraining_stop_callback, pretraing_freeze_callback]
+            trainer_kwargs["callbacks"] = list(trainer_kwargs.get("callbacks") or []) + [
+                check_pretraining_stop_callback,
+                pretraing_freeze_callback,
+            ]
 
         # PRETRAINING
         # TRAINING
         # PASSED TO pl.Trainer
         training_plan = self._training_plan_cls(module=self.module, **plan_kwargs)
+        training_plan.is_pretrained = not pretraining
+        # A previous attempt may have ended with the count encoder still frozen.
+        if not pretraining:
+            tcb.PretrainingFreezeWeights.make_trainable(self.module.z_encoder)
+
+        self.training_status_ = {
+            "pretraining_enabled": pretraining,
+            "pretraining_completed": not pretraining,
+            "unfreeze_epoch": None,
+            "pretraining_epochs_completed": 0,
+            "joint_epochs_completed": 0,
+            "epochs_completed": 0,
+            "termination_reason": "running",
+        }
+        training_plan.training_status = self.training_status_
+        callbacks = list(trainer_kwargs.get("callbacks") or [])
+        callbacks.append(tcb.TrainingStatus())
+        if trainer_kwargs["early_stopping"]:
+            # Replace scvi's automatic stopper so it cannot consume patience or
+            # retain a best score from the frozen-encoder phase.
+            callbacks.append(
+                tcb.JointTrainingEarlyStopping(
+                    monitor=trainer_kwargs.get("early_stopping_monitor", "elbo_validation"),
+                    min_delta=trainer_kwargs.get("early_stopping_min_delta", 0.0),
+                    patience=trainer_kwargs.get("early_stopping_patience", 45),
+                    mode=trainer_kwargs.get("early_stopping_mode", "min"),
+                )
+            )
+            trainer_kwargs["early_stopping"] = False
+            trainer_kwargs["check_val_every_n_epoch"] = 1
+        trainer_kwargs["callbacks"] = callbacks
 
         # Should be left as is
         runner = self._train_runner_cls(
@@ -433,4 +602,36 @@ class SCCORAL(BaseModelClass, TunableMixin, VAEMixin):
             **trainer_kwargs,
         )
 
-        return runner()
+        try:
+            result = runner()
+        except BaseException as exc:
+            self.training_status_["termination_reason"] = (
+                "interrupted" if isinstance(exc, KeyboardInterrupt) else "failed"
+            )
+            raise
+        else:
+            if self.training_status_["termination_reason"] == "running":
+                trainer = runner.trainer
+                if trainer.max_steps >= 0 and trainer.global_step >= trainer.max_steps:
+                    reason = "max_steps"
+                elif trainer.current_epoch >= trainer.max_epochs:
+                    reason = "max_epochs"
+                elif trainer.should_stop:
+                    reason = "stop_requested"
+                else:
+                    reason = "completed"
+                self.training_status_["termination_reason"] = reason
+            return result
+        finally:
+            logger.info("Training status: %s", self.training_status_)
+            if self.training_status_["joint_epochs_completed"] == 0:
+                warnings.warn(
+                    "Training ended without completing a joint-training epoch. "
+                    "Inspect model.training_status_ before using the fitted model.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            if training_status_path is not None:
+                status_path = Path(training_status_path)
+                status_path.parent.mkdir(parents=True, exist_ok=True)
+                status_path.write_text(json.dumps(self.training_status_, indent=2) + "\n")

@@ -7,15 +7,17 @@ import numpy as np
 from scvi.data import synthetic_iid
 
 
-def synthetic_data(n_cat=2, n_con=10, save: str | None = None, seed: int = 42) -> ad.AnnData:
+def synthetic_data(n_cat=2, save: str | None = None, seed: int = 42) -> ad.AnnData:
     """Generate synthetic data based on the scvi-tools synthetic data implementation
 
     Parameters
     ----------
     n_cat
         Number of levels in categorical covariate
-    save:
-        Whether to save adata
+    save
+        Path to write the AnnData to as an `.h5ad` file. If `None`, the data is not saved.
+    seed
+        Random seed for the generated covariates.
 
     Returns
     -------
@@ -58,40 +60,10 @@ def splatter_simulation(save_path: str = "data/", filename: str = "simulation.h5
     """
     url = "https://www.dropbox.com/scl/fi/tf6qks693176jk61e2gdd/simulation.1.simplified.h5ad?rlkey=xe0b03y2baeg92h8bdjfi76f5&st=9ihmva4s&dl=1"
 
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
+    os.makedirs(save_path, exist_ok=True)
 
     path_to_file = os.path.join(save_path, filename)
 
     if not os.path.isfile(path_to_file):
         urlretrieve(url, path_to_file)
     return ad.read_h5ad(path_to_file)
-
-
-def ifn_kang2018_cd4(save_path: str = "data/", filename: str = "ifn_kang2018.h5ad") -> ad.AnnData:
-    """Load CD4+ T cells from Kang et al, 2018
-
-    Parameters
-    ----------
-    save_path
-        Where to save the data
-    filename
-        Filename
-
-    Returns
-    -------
-    Annotated data matrix.
-        IFN Kang et al, 2018.
-        - obs (index: cell_id): sample_id, stimulation_condition (stim/ctrl)
-        - var (index: gene_id)
-        - varm
-            - deg_log2fc: Ground truth differentially expressed genes
-            - deg_pvals_adj: Ground truth adjusted pvals (wilcoxon)
-
-    References
-    ----------
-    Kang et al, 2018
-
-    .. [1] Kang, H. M. et al. Multiplexed droplet single-cell RNA-sequencing using natural genetic variation. Nat Biotechnol 36, 89–94 (2018).
-    """
-    pass

@@ -2,10 +2,47 @@ import logging
 from typing import Literal
 
 from lightning import LightningModule, Trainer
-from lightning.pytorch.callbacks import BaseFinetuning, EarlyStopping
+from lightning.pytorch.callbacks import BaseFinetuning, Callback, EarlyStopping
 from torch.optim.optimizer import Optimizer
 
 logger = logging.getLogger(__name__)
+
+
+class JointTrainingEarlyStopping(EarlyStopping):
+    """Evaluate overall early stopping only after the count encoder is unfrozen."""
+
+    def _run_early_stopping_check(self, trainer: Trainer):
+        pl_module = trainer.lightning_module
+        if not pl_module.is_pretrained:
+            return
+        already_stopping = trainer.should_stop
+        super()._run_early_stopping_check(trainer)
+        if trainer.should_stop and not already_stopping:
+            pl_module.training_status["termination_reason"] = "early_stopping"
+
+
+class TrainingStatus(Callback):
+    """Record fully completed training epochs in the model's saved status dictionary."""
+
+    def on_train_epoch_start(self, trainer: Trainer, pl_module: LightningModule):
+        self._batches_completed = 0
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        self._batches_completed += 1
+
+    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule):
+        # A max_steps limit can end an epoch after only a subset of its batches.
+        if self._batches_completed < trainer.num_training_batches:
+            return
+        status = pl_module.training_status
+        status["epochs_completed"] += 1
+        key = "joint_epochs_completed" if pl_module.is_pretrained else "pretraining_epochs_completed"
+        status[key] += 1
+
+    def on_exception(self, trainer, pl_module, exception):
+        pl_module.training_status["termination_reason"] = (
+            "interrupted" if isinstance(exception, KeyboardInterrupt) else "failed"
+        )
 
 
 class EarlyStoppingCheck(EarlyStopping):
@@ -42,17 +79,17 @@ class EarlyStoppingCheck(EarlyStopping):
         check_on_train: bool = True,
         **kwargs,
     ):
-        super().__init__(monitor, min_delta, patience, mode, **kwargs)
+        super().__init__(monitor=monitor, min_delta=min_delta, patience=patience, mode=mode, **kwargs)
 
         self.check_on_train = check_on_train
-
-        self.state = {}
 
     def _run_early_stopping_check(self, trainer: Trainer, pl_module: LightningModule):
         """Overwrite method that stops trainer"""
         pass
 
     def _check_stopping(self, trainer: Trainer, pl_module: LightningModule):
+        if pl_module.is_pretrained or trainer.sanity_checking:
+            return
         logs = trainer.callback_metrics
         current = logs[self.monitor].squeeze()
         should_stop, reason = self._evaluate_stopping_criteria(current)
@@ -124,7 +161,6 @@ class PretrainingFreezeWeights(BaseFinetuning):
                 train_bn=True,
             )
             pl_module.is_pretrained = True
-
-            logger.info(
-                f"Unfreeze weights - Epoch {self.n_pretraining_epochs} - Early stopping: {early_stopping_condition}"
-            )
+            pl_module.training_status["pretraining_completed"] = True
+            pl_module.training_status["unfreeze_epoch"] = epoch
+            logger.info("Count encoder unfrozen at epoch %s; joint training begins.", epoch)

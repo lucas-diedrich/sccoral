@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Iterable
 from typing import Literal
 
@@ -15,14 +14,10 @@ except ImportError:
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, one_hot
-from torch import logsumexp
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kld
 
 from sccoral.nn import LinearDecoder, LinearEncoder
-
-logger = logging.Logger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class MODULE(BaseModuleClass):
@@ -52,7 +47,6 @@ class MODULE(BaseModuleClass):
         Regularization parameter
     n_batch
         Number of batches
-    # n_labels NOT IMPLEMENTED
     n_hidden
         Number of nodes per hidden layer on encoder site
     n_latent
@@ -60,16 +54,16 @@ class MODULE(BaseModuleClass):
     n_layers
         Number of layers on encoder site
     latent_distribution
-        Whether the latent distribution is normal (scVI) or lognormal (as suggested by LSCVI).
+        Whether the latent distribution is normal (scVI) or logistic normal (as suggested by LSCVI).
         As the original authors found that the log(data+1) latent distribution is less powerful,
-        we use `lognormal` per default.
+        we use `logistic normal` per default.
     dispersion
-        Fit dispersion parameters on a per-gene, per-gene/individual batch, per-gene/individual cell
-        basis
+        Fit dispersion parameters on a per-gene ("gene") or per-gene/individual batch
+        ("gene-batch") basis
     log_variational
         Logarithmized variance for increased stability
     use_batch_norm
-        Whether to use batch norm in encoder
+        Whether to use batch norm in the encoder and/or decoder
     use_layer_norm
         Whether to use layer norm in encoder.
     library_log_means, library_log_vars
@@ -85,18 +79,17 @@ class MODULE(BaseModuleClass):
         continuous_names: None | Iterable,
         alpha_l1: Tunable[float] = 0,
         n_batch: int = 0,
-        # n_labels: int = 0,  # TODO gene-labels not implemented
         n_hidden: Tunable[int] = 128,
         n_latent: int = 10,
         n_layers: Tunable[int] = 1,
         dropout_rate: Tunable[float] = 0.1,
         gene_likelihood: Tunable[Literal["nb", "zinb", "poisson"]] = "nb",  # as LSCVI
         latent_distribution: Tunable[Literal["normal", "ln"]] = "ln",  # as LSCVI
-        dispersion: Tunable[Literal["gene", "gene-batch", "gene-cell"]] = "gene",  # TODO gene-labels not implemented
+        dispersion: Tunable[Literal["gene", "gene-batch"]] = "gene",
         log_variational: bool = True,  # as LSCVI
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "none"]] = "none",
-        use_observed_lib_size: Tunable[bool] = True,  # TODO LSCVI overwrites this flag and uses False
+        use_observed_lib_size: Tunable[bool] = False,
         library_log_means: None | np.ndarray = None,
         library_log_vars: None | np.ndarray = None,
         **vae_kwargs,
@@ -117,15 +110,12 @@ class MODULE(BaseModuleClass):
         self.alpha_l1 = alpha_l1
 
         self.n_batch = n_batch
-        # self.n_labels = n_labels # TODO gene-labels not implemented
-        self.latent = n_latent
         self.log_variational = log_variational
         self.gene_likelihood = gene_likelihood
         self.latent_distribution = latent_distribution
 
         self.dispersion = dispersion
 
-        # self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_observed_lib_size
 
         if not self.use_observed_lib_size:
@@ -140,23 +130,12 @@ class MODULE(BaseModuleClass):
             self.px_r = torch.nn.Parameter(torch.randn(n_input))
         elif self.dispersion == "gene-batch":
             self.px_r = torch.nn.Parameter(torch.randn(n_input, n_batch))
-        # elif self.dispersion == "gene-label": # TODO gene-label not implemented
-        #     self.px_r = torch.nn.Parameter(torch.randn(n_input, n_labels))
-        elif self.dispersion == "gene-cell":
-            pass
         else:
-            raise ValueError(
-                "dispersion must be one of ['gene', 'gene-batch',"
-                " 'gene-label', 'gene-cell'], but input was "
-                "{}.format(self.dispersion)"
-            )
+            raise ValueError(f"dispersion must be one of ['gene', 'gene-batch'], but input was {self.dispersion}")
 
         self.use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         self.use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         self.use_layer_norm_encoder = use_layer_norm == "encoder"
-
-        self.use_batch_norm = use_batch_norm
-        use_layer_norm = use_layer_norm
 
         # SETUP Neural nets
         # Setup latent space as follows:
@@ -258,7 +237,6 @@ class MODULE(BaseModuleClass):
             categorical_covariates_ohe = {}
             categorical_covariates = torch.split(tensors[categorical_key], split_size_or_sections=1, dim=1)
             for xi, (cat_name, n_level) in zip(categorical_covariates, self.categorical_mapping.items(), strict=False):
-                # TODO
                 if n_level == 2:
                     categorical_covariates_ohe[cat_name] = xi.to(dtype=torch.float32, device=self.device)
                 else:
@@ -283,6 +261,14 @@ class MODULE(BaseModuleClass):
             "categorical_covariates": categorical_covariates_ohe,
         }
         return input_dict
+
+    def transform_latent(self, z_untransformed: torch.Tensor) -> torch.Tensor:
+        """Transform Gaussian samples using the same blocks as the encoders."""
+        if self.latent_distribution == "ln":
+            free = torch.softmax(z_untransformed[..., : self.n_latent], dim=-1)
+            covariates = torch.sigmoid(z_untransformed[..., self.n_latent :])
+            return torch.cat([free, covariates], dim=-1)
+        return z_untransformed
 
     def inference(self, x, batch_index, continuous_covariates, categorical_covariates, n_samples=1):
         x_ = x
@@ -343,10 +329,9 @@ class MODULE(BaseModuleClass):
         qz = Normal(loc=mean_z, scale=torch.sqrt(var_z))
 
         if n_samples > 1:
-            # Sample n samples from normal distribution
-            # if lognormal, transform z
+            # Preserve the free-factor softmax and independent covariate sigmoids.
             z_untransformed = qz.sample((n_samples,))
-            z = self.z_encoder.z_transformation(z_untransformed)
+            z = self.transform_latent(z_untransformed)
 
             if self.use_observed_lib_size:
                 library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
@@ -392,19 +377,9 @@ class MODULE(BaseModuleClass):
         # px_scale: normalized gene expression (relative to library size)
         # px_r: Inverse dispersion of negative binomial
         # px_rate = torch.exp(library)*scale Unnormalized gene expression
-        # px_dropout: For ZINB model, dropout rate/rate of zero inflation,
-        # not recommended
+        # px_dropout: For ZINB model, dropout rate/rate of zero inflation
+        px_scale, px_r, px_rate, px_dropout = self.decoder(z=decoder_input, library=library)
 
-        # TODO Double check, add batch_id as covariate
-        # TODO library to size factor
-        px_scale, px_r, px_rate, px_dropout = self.decoder(dispersion="", z=decoder_input, library=library)
-
-        # TODO gene-label not implemented
-        # gene-cell: do nothing
-        # if self.dispersion == 'gene-label':
-        #     px_r = F.linear(
-        #         one_hot(y, self.n_labels), self.px_r
-        #     )
         if self.dispersion == "gene-batch":
             px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":
@@ -449,7 +424,7 @@ class MODULE(BaseModuleClass):
             kl_divergence_l = kld(
                 inference_outputs["ql"],
                 generative_outputs["pl"],
-            ).sum(dim=1)
+            ).sum(dim=-1)
         else:
             kl_divergence_l = torch.tensor(0.0, device=x.device)
 
@@ -472,56 +447,6 @@ class MODULE(BaseModuleClass):
         )
 
     @torch.inference_mode()
-    @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples, return_mean=False, n_mc_samples_per_pass=1):
-        """Implementation from scvi-tools"""
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-        to_sum = []
-        if n_mc_samples_per_pass > n_mc_samples:
-            logger.warn(
-                "Number of chunks is larger than the total number of samples, setting it to the number of samples"
-            )
-            n_mc_samples_per_pass = n_mc_samples
-        n_passes = int(np.ceil(n_mc_samples / n_mc_samples_per_pass))
-        for _ in range(n_passes):
-            # Distribution parameters and sampled variables
-            inference_outputs, _, losses = self.forward(tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass})
-            qz = inference_outputs["qz"]
-            ql = inference_outputs["ql"]
-            z = inference_outputs["z"]
-            library = inference_outputs["library"]
-
-            # Reconstruction Loss
-            reconst_loss = losses.dict_sum(losses.reconstruction_loss)
-
-            # Log-probabilities
-            p_z = Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale)).log_prob(z).sum(dim=-1)
-            p_x_zl = -reconst_loss
-            q_z_x = qz.log_prob(z).sum(dim=-1)
-            log_prob_sum = p_z + p_x_zl - q_z_x
-
-            if not self.use_observed_lib_size:
-                (
-                    local_library_log_means,
-                    local_library_log_vars,
-                ) = self._compute_local_library_params(batch_index)
-
-                p_l = Normal(local_library_log_means, local_library_log_vars.sqrt()).log_prob(library).sum(dim=-1)
-                q_l_x = ql.log_prob(library).sum(dim=-1)
-
-                log_prob_sum += p_l - q_l_x
-
-            to_sum.append(log_prob_sum)
-        to_sum = torch.cat(to_sum, dim=0)
-        batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(n_mc_samples)
-        if return_mean:
-            batch_log_lkl = torch.mean(batch_log_lkl).item()
-        else:
-            batch_log_lkl = batch_log_lkl.cpu()
-        return batch_log_lkl
-
-    @torch.inference_mode()
     def get_loadings(self) -> np.ndarray:
         """Implementation from LSCVI"""
         if self.use_batch_norm_decoder:
@@ -535,8 +460,5 @@ class MODULE(BaseModuleClass):
         else:
             loadings = self.decoder.factor_loading.fc_layers[0][0].weight
         loadings = loadings.detach().cpu().numpy()
-        # TODO double check
-        # if self.n_batch > 1:
-        # loadings = loadings[:, : -self.n_batch]
 
         return loadings

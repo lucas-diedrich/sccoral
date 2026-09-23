@@ -79,10 +79,6 @@ class ScCoralTrainingPlan(TrainingPlan):
     def is_pretrained(self, value: bool):
         self._is_pretrained = value
 
-    @is_pretrained.getter
-    def is_pretrained(self):
-        return self._is_pretrained
-
     @property
     def pretraining_early_stopping_condition(self):
         """Indicate if pretraining early stopping condition is met

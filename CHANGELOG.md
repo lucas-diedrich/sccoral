@@ -8,7 +8,34 @@ and this project adheres to [Semantic Versioning][].
 
 ## [Unreleased]
 
+### Removed
+
+- Removed the incorrect marginal-likelihood estimator. The inherited
+  `get_marginal_ll()` entry point now raises `NotImplementedError`.
+  Training, ELBO evaluation, and reconstruction-error evaluation remain available.
+
+### Fixed
+
+- Delay automatic overall early stopping until joint training begins and warn
+  when a run ends without completing a joint-training epoch.
+- Forward extra `train()` keyword arguments to the trainer, including
+  `early_stopping_patience`. Reject duplicate direct/nested trainer arguments
+  and preserve caller-owned trainer settings and callback lists.
+- Preserve free-factor softmax and independent covariate sigmoid transformations in
+  posterior mean extraction and multi-sample inference. Existing covariate-informed
+  logistic-normal embeddings should be re-extracted from saved models, and analyses
+  using those embeddings recomputed. Model weights and ordinary training are unchanged.
+- Preserve cell identities when extracting a subset or reordered latent representation.
+
 ### Added
+
+- Add `sccoral.tl.extract_gene_sets`, `score_gene_sets`, and
+  `get_score_orientation` for signed factor signatures, with cutoff metadata,
+  gene coverage reporting, and reusable reference-based score orientation.
+- Add `sccoral.tl.select_dimensionality` to estimate a component count from
+  the PCA variance-ratio elbow, with optional log transformation.
+- Record the latest training attempt in `model.training_status_`, retained by
+  model save/load. Optional `training_status_path` exports the same record as JSON.
 
 #### March 2024
 

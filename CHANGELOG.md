@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning][].
 
 ### Added
 
+- Add `sccoral.tl.extract_gene_sets`, `score_gene_sets`, and
+  `get_score_orientation` for signed factor signatures, with cutoff metadata,
+  gene coverage reporting, and reusable reference-based score orientation.
+- Add `sccoral.tl.select_dimensionality` to estimate a component count from
+  the PCA variance-ratio elbow, with optional log transformation.
 - Record the latest training attempt in `model.training_status_`, retained by
   model save/load. Optional `training_status_path` exports the same record as JSON.
 

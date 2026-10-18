@@ -50,10 +50,6 @@ jobs:
   # Run tests through hatch. Spawns a separate runner for each environment defined in the hatch matrix obtained above.
   test:
     needs: get-environments
-    permissions:
-       id-token: write  # for codecov OIDC
-       contents: read
-
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +72,7 @@ jobs:
           python-version: ${{ matrix.env.python }}
       - name: create hatch environment
         run: uvx hatch env create ${{ matrix.env.name }}
-      - name: list all all installed package versions
+      - name: List installed package versions
         run: uvx hatch run ${{ matrix.env.name }}:uv pip list
       - name: run tests using hatch
         env:
@@ -93,8 +89,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
-          fail_ci_if_error: true
-          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   # Check that all tests defined above pass. This makes it easy to set a single "required" test in branch
   # protection instead of having to update it frequently. See https://github.com/re-actors/alls-green#why.

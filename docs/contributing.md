@@ -67,36 +67,26 @@ To get a list of all environments for your projects, run
 hatch env show -i
 ```
 
-This will list “Standalone” environments and a table of “Matrix” environments like the following:
+This will list standalone environments and the test matrix. The test environments are:
 
-```
-+------------+---------+--------------------------+----------+---------------------------------+-------------+
-| Name       | Type    | Envs                     | Features | Dependencies                    | Scripts     |
-+------------+---------+--------------------------+----------+---------------------------------+-------------+
-| hatch-test | virtual | hatch-test.py3.12-stable | dev      | coverage-enable-subprocess==1.0 | cov-combine |
-|            |         | hatch-test.py3.14-stable | test     | coverage[toml]~=7.4             | cov-report  |
-|            |         | hatch-test.py3.14-pre    |          | pytest-mock~=3.12               | run         |
-|            |         |                          |          | pytest-randomly~=3.15           | run-cov     |
-|            |         |                          |          | pytest-rerunfailures~=14.0      |             |
-|            |         |                          |          | pytest-xdist[psutil]~=3.5       |             |
-|            |         |                          |          | pytest~=8.1                     |             |
-+------------+---------+--------------------------+----------+---------------------------------+-------------+
-```
+- `hatch-test.py3.10-stable`
+- `hatch-test.py3.12-stable`
+- `hatch-test.py3.12-pre`
 
-From the `Envs` column, select the environment name you want to use for development.
+Select the environment name you want to use for development.
 As the main development environment, we recommend to use `hatch-test` with the latest supported Python version.
-In this example, it would be `hatch-test.py3.14-stable`.
+In this example, it would be `hatch-test.py3.12-stable`.
 
 Next, create the environment with
 
 ```bash
-hatch env create hatch-test.py3.14-stable
+hatch env create hatch-test.py3.12-stable
 ```
 
 Then, obtain the path to the environment using
 
 ```bash
-hatch env find hatch-test.py3.14-stable
+hatch env find hatch-test.py3.12-stable
 ```
 
 and manually point it to the python binary.
@@ -117,7 +107,8 @@ only because an outdated sphinx plugin pins an older version.
 To initialize a virtual environment in the `.venv` directory of your project, simply run
 
 ```bash
-uv sync --all-extras
+uv venv --python 3.12
+uv pip install -e ".[dev,test,doc]"
 ```
 
 The `.venv` directory is typically automatically discovered by IDEs such as VS Code.
@@ -187,7 +178,7 @@ Consider enabling this option for [ruff][ruff-editors] and [biome][biome-editors
 ## Writing tests
 
 This package uses [pytest][] for automated testing.
-Please write {doc}`scanpy:dev/testing` for every function added to the package.
+Please write tests for every function added to the package; see {doc}`scanpy:dev/testing`.
 
 Most IDEs integrate with pytest and provide a GUI to run tests.
 If you set up your virtual environments as described in [installing dev dependencies](#installing-dev-dependencies),
@@ -200,7 +191,7 @@ Alternatively, you can run all tests from the command line by executing
 :sync: hatch
 
 ```bash
-hatch test  # test with the highest supported Python version
+hatch test -py 3.12 --include deps=stable  # stable dependencies on Python 3.12
 # or
 hatch test --all  # test with all supported Python versions
 ```
@@ -211,7 +202,7 @@ hatch test --all  # test with all supported Python versions
 :sync: uv
 
 ```bash
-uv run pytest
+uv run --no-sync pytest
 ```
 
 ::::
@@ -275,10 +266,10 @@ Please write documentation for new or changed features and use-cases.
 This project uses [sphinx][] with the following features:
 
 - The [myst][] extension allows to write documentation in markdown/Markedly Structured Text
-- [Numpy-style docstrings][numpydoc] (through the [napoloen][numpydoc-napoleon] extension).
+- [Numpy-style docstrings][numpydoc] (through the [napoleon][numpydoc-napoleon] extension).
 - Jupyter notebooks as tutorials through [myst-nb][] (See [Tutorials with myst-nb](#tutorials-with-myst-nb-and-jupyter-notebooks))
 - [sphinx-autodoc-typehints][], to automatically reference annotated input and output types
-- Citations (like {cite:p}`Virshup_2023`) can be included with [sphinxcontrib-bibtex](https://sphinxcontrib-bibtex.readthedocs.io/)
+- Citations (like {cite:p}`virshup2023`) can be included with [sphinxcontrib-bibtex](https://sphinxcontrib-bibtex.readthedocs.io/)
 
 See scanpy’s {doc}`scanpy:dev/documentation` for more information on how to write your own.
 
@@ -291,7 +282,7 @@ See scanpy’s {doc}`scanpy:dev/documentation` for more information on how to wr
 
 ### Tutorials with myst-nb and jupyter notebooks
 
-The documentation is set-up to render jupyter notebooks stored in the `docs/notebooks` directory using [myst-nb][].
+The documentation is set-up to render jupyter notebooks stored in the `docs/tutorials/notebooks` directory using [myst-nb][].
 Currently, only notebooks in `.ipynb` format are supported that will be included with both their input and output cells.
 It is your responsibility to update and re-run the notebook whenever necessary.
 
@@ -318,6 +309,7 @@ please check out [this feature request][issue-render-notebooks] in the `cookiecu
 ```bash
 hatch run docs:build
 hatch run docs:open
+# Use hatch run docs:build -W to treat documentation warnings as errors.
 ```
 
 ::::
@@ -327,7 +319,7 @@ hatch run docs:open
 
 ```bash
 cd docs
-uv run sphinx-build -M html . _build -W
+uv run --no-sync sphinx-build -M html . _build
 (xdg-)open _build/html/index.html
 ```
 
@@ -339,7 +331,7 @@ uv run sphinx-build -M html . _build -W
 ```bash
 source .venv/bin/activate
 cd docs
-sphinx-build -M html . _build -W
+sphinx-build -M html . _build
 (xdg-)open _build/html/index.html
 ```
 

@@ -26,7 +26,7 @@ Increasing throughput in single-cell technologies enables researchers to create 
 This repository is still under active development. If you want to install the package, please install it directly from `GitHub`.
 
 <!--
-You need to have Python 3.9 or newer installed on your system. If you don't have
+You need to have Python 3.10 or newer installed on your system. If you don't have
 Python installed, we recommend installing [Mambaforge](https://github.com/conda-forge/miniforge#mambaforge). -->
 
 <!--
